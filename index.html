@@ -109,7 +109,7 @@
                 <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
                     <div>
                         <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
-                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbw4JhT90AOi177_3v0Czc4H56W5zGZiDJ5xLF2TJ9uS-v6uakDa8zRA0CCAnXBoG28/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px] focus:outline-none">
+                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbxs3d-Uo5GEdMzFzIGdfouki_pfssWg-UokzbWciyiITXho_qakEbELkoCq7wtPtH_9/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px] focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
@@ -575,25 +575,55 @@
             window.open(`https://drive.google.com/drive/search?q=${searchQuery}`, '_blank');
         }
 
-        // ================= TIMER & AUTO DELETE SYSTEM =================
+        // ================= TIMER & AUTO DELETE SYSTEM (FIXED FOR MOBILE / SAFARI) =================
         function startGlobalTimer() {
             if (countdownTimerInterval) clearInterval(countdownTimerInterval);
             countdownTimerInterval = setInterval(updateAllCountdowns, 1000);
             updateAllCountdowns();
         }
 
+        // ฟังก์ชันสำหรับแกะ String วันที่สร้างให้อ่านค่าได้ 100% บน iOS / Safari
+        function safeParseDate(dateInput) {
+            if (!dateInput) return null;
+            if (dateInput instanceof Date) return isNaN(dateInput.getTime()) ? null : dateInput;
+
+            let str = String(dateInput).trim();
+            
+            // 1. ลองพาร์สแบบ ISO Standard ที่ iOS Safari รองรับ (แทนที่ช่องว่างด้วย T)
+            let isoFormatted = str.replace(" ", "T");
+            let d = new Date(isoFormatted);
+            if (!isNaN(d.getTime())) return d;
+
+            // 2. ถ้าเป็น String แบบไทย หรือ วัน/เดือน/ปี เช่น 2026-10-23 03:30:00
+            let parts = str.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+            if (parts) {
+                return new Date(
+                    parseInt(parts[1], 10),
+                    parseInt(parts[2], 10) - 1,
+                    parseInt(parts[3], 10),
+                    parts[4] ? parseInt(parts[4], 10) : 0,
+                    parts[5] ? parseInt(parts[5], 10) : 0,
+                    parts[6] ? parseInt(parts[6], 10) : 0
+                );
+            }
+
+            return null;
+        }
+
+        // ฟังก์ชันช่วยสกัด Date object จากชื่ออัลบั้ม (เช่น 037Studio_23.10.69_13:00)
         function parseDateFromTitle(title) {
             if (!title) return null;
-            const match = title.match(/(\d{2})\.(\d{2})\.(\d{2})(?:_(\d{2}):(\d{2}))?/);
+            const match = title.match(/(\d{2})\.(\d{2})\.(\d{2,4})(?:_(\d{2}):(\d{2}))?/);
             if (match) {
                 const day = parseInt(match[1], 10);
                 const month = parseInt(match[2], 10) - 1;
-                let year = parseInt(match[3], 10);
+                let rawYear = parseInt(match[3], 10);
                 
-                if (year > 50) {
-                    year = (2500 + year) - 543;
-                } else {
-                    year = 2000 + year;
+                let year = rawYear;
+                if (rawYear < 100) {
+                    year = (2500 + rawYear) - 543;
+                } else if (rawYear > 2500) {
+                    year = rawYear - 543;
                 }
 
                 const hours = match[4] ? parseInt(match[4], 10) : 0;
@@ -606,22 +636,24 @@
         }
 
         function getCountdownInfo(album) {
-            if (!album || album.expireDays === 0) {
+            if (!album || album.expireDays === 0 || album.expireDays === "0") {
                 return { text: "ไม่ลบอัตโนมัติ", isExpired: false, totalSeconds: Infinity };
             }
 
             let expireDays = album.expireDays !== undefined ? parseFloat(album.expireDays) : 7;
             let createdDate = null;
 
+            // 1. ดึงวันที่สร้างจาก createdAt ที่เซิร์ฟเวอร์ส่งมา
             if (album.createdAt) {
-                const temp = new Date(album.createdAt);
-                if (!isNaN(temp.getTime())) createdDate = temp;
+                createdDate = safeParseDate(album.createdAt);
             }
 
+            // 2. หาก createdAt อ่านค่าไม่ได้ ให้แกะวันที่และเวลาจากชื่ออัลบั้ม
             if (!createdDate && album.title) {
                 createdDate = parseDateFromTitle(album.title);
             }
 
+            // 3. ป้องกันกรณีอ่านไม่ได้เลย ให้ใช้วันเวลาปัจจุบัน
             if (!createdDate) {
                 createdDate = new Date();
             }
