@@ -113,7 +113,7 @@
                 <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
                     <div>
                         <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
-                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbzDirwpSreyfzehdsf6P23RLc3Stu6W8zZ0psvb6NdbMg_2l3gVb4Na5-nzYJY0t-PO/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none>
+                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none>
                     </div>
                     <div>
                         <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
@@ -181,7 +181,7 @@
                     </div>
                 </div>
 
-                <!-- Admin Photo List (แสดงพรีวิวพร้อมเปอร์เซ็นต์ทันทีที่อัปโหลด) -->
+                <!-- Admin Photo List -->
                 <div id="adminPhotoGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
             </div>
 
@@ -422,7 +422,9 @@
 
     <!-- ================= APP LOGIC JAVASCRIPT ================= -->
     <script>
-        let googleScriptUrl = "https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec";
+        // กำหนด Google Apps Script Web App URL เริ่มต้นตัวใหม่ล่าสุด
+        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec";
+        let googleScriptUrl = DEFAULT_SCRIPT_URL;
         let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
 
         let currentMode = 'admin';
@@ -498,7 +500,11 @@
 
         function loadStorageData() {
             const savedUrl = localStorage.getItem('sikram_script_url');
-            if (savedUrl) googleScriptUrl = savedUrl;
+            if (savedUrl) {
+                googleScriptUrl = savedUrl;
+            } else {
+                googleScriptUrl = DEFAULT_SCRIPT_URL;
+            }
             document.getElementById('inputScriptUrl').value = googleScriptUrl;
 
             const savedFolder = localStorage.getItem('sikram_drive_folder');
@@ -554,7 +560,7 @@
         }
 
         function saveDriveSettings() {
-            googleScriptUrl = document.getElementById('inputScriptUrl').value.trim();
+            googleScriptUrl = document.getElementById('inputScriptUrl').value.trim() || DEFAULT_SCRIPT_URL;
             parentDriveFolderId = document.getElementById('inputDriveFolderId').value.trim();
             localStorage.setItem('sikram_script_url', googleScriptUrl);
             localStorage.setItem('sikram_drive_folder', parentDriveFolderId);
