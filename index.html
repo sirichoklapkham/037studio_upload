@@ -113,7 +113,7 @@
                 <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
                     <div>
                         <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
-                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbw6haKYioAuOO3gBGRbi3gZEovHwaVxP1teuvebTJ_OHnL-k-0dUUSaoc_xgYNXIql3/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none>
+                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbzDirwpSreyfzehdsf6P23RLc3Stu6W8zZ0psvb6NdbMg_2l3gVb4Na5-nzYJY0t-PO/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none>
                     </div>
                     <div>
                         <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
@@ -179,23 +179,9 @@
                         <p class="text-sm text-slate-200 font-medium">คลิกเพื่อเลือกรูปภาพ หรือลากไฟล์มาวางที่นี่</p>
                         <p class="text-xs text-slate-500 mt-1">รูปจะถูกอัปโหลดเข้า Google Drive พร้อมแสดงผลให้ลูกค้าดาวน์โหลด</p>
                     </div>
-
-                    <div id="uploadProgressContainer" class="hidden bg-navy-950 p-4 rounded-xl border border-slate-800 space-y-2">
-                        <div class="flex justify-between items-center text-xs">
-                            <span id="uploadProgressStatus" class="text-slate-300 font-medium">กำลังอัปโหลด...</span>
-                            <span id="uploadProgressPercent" class="text-sky-400 font-bold">0%</span>
-                        </div>
-                        <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                            <div id="uploadProgressBar" class="bg-gradient-to-r from-sky-500 to-emerald-400 h-2.5 rounded-full w-0 transition-all duration-200"></div>
-                        </div>
-                        <div class="flex justify-between text-[11px] text-slate-500">
-                            <span id="uploadCountText">0/0 รูป</span>
-                            <span id="uploadErrorText" class="text-rose-400"></span>
-                        </div>
-                    </div>
                 </div>
 
-                <!-- Admin Photo List -->
+                <!-- Admin Photo List (แสดงพรีวิวพร้อมเปอร์เซ็นต์ทันทีที่อัปโหลด) -->
                 <div id="adminPhotoGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
             </div>
 
@@ -436,7 +422,7 @@
 
     <!-- ================= APP LOGIC JAVASCRIPT ================= -->
     <script>
-        let googleScriptUrl = "https://script.google.com/macros/s/AKfycbzDirwpSreyfzehdsf6P23RLc3Stu6W8zZ0psvb6NdbMg_2l3gVb4Na5-nzYJY0t-PO/exec";
+        let googleScriptUrl = "https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec";
         let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
 
         let currentMode = 'admin';
@@ -918,92 +904,107 @@
             e.target.value = '';
         }
 
-        // อัปโหลดรูปขึ้น Google Drive
+        // ================= อัปโหลดรูปทีละไฟล์ พร้อมสร้างการ์ดพรีวิว + เปอร์เซ็นต์ทันที =================
         async function uploadFilesProcess(files) {
+            const grid = document.getElementById('adminPhotoGrid');
             const currentAlbum = albums.find(a => a.id === currentAlbumId);
             const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
-
-            const progressContainer = document.getElementById('uploadProgressContainer');
-            const progressBar = document.getElementById('uploadProgressBar');
-            const progressPercent = document.getElementById('uploadProgressPercent');
-            const statusText = document.getElementById('uploadProgressStatus');
-
-            progressContainer.classList.remove('hidden');
-            const filePayloads = [];
-            const total = files.length;
 
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
                 const base64 = await readFileAsDataURL(file);
-                filePayloads.push({
-                    name: file.name,
-                    type: file.type,
-                    base64: base64
-                });
-                
-                const readPercent = Math.round(((i + 1) / total) * 40);
-                progressBar.style.width = readPercent + '%';
-                progressPercent.innerText = readPercent + '%';
-            }
+                const tempId = 'temp_' + Date.now() + '_' + i;
 
-            statusText.innerText = 'กำลังส่งไฟล์และบันทึกลง Google Drive...';
-            progressBar.style.width = '70%';
+                // 1. แทรกการ์ดภาพพรีวิวพร้อมสปินเนอร์และ % บนตัวรูปทันที
+                const card = document.createElement('div');
+                card.id = tempId;
+                card.className = "relative bg-navy-950 rounded-xl overflow-hidden border border-slate-800 aspect-square";
+                card.innerHTML = `
+                    <img src="${base64}" class="w-full h-full object-cover opacity-50">
+                    <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white font-bold text-xs space-y-1">
+                        <i class="fa-solid fa-spinner fa-spin text-sky-400 text-base"></i>
+                        <span id="percent_${tempId}" class="text-sky-300">0%</span>
+                    </div>
+                    <div class="absolute bottom-0 inset-x-0 bg-black/70 p-1 text-[10px] text-slate-300 truncate text-center">
+                        ${file.name}
+                    </div>
+                `;
+                grid.prepend(card);
 
-            try {
-                const response = await fetch(googleScriptUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({
-                        albumTitle: albumTitle,
-                        parentFolderId: parentDriveFolderId,
-                        files: filePayloads
-                    })
-                });
+                // จำลองหลอดเปอร์เซ็นต์ขณะประมวลผลส่งไฟล์
+                let percent = 0;
+                const interval = setInterval(() => {
+                    percent += 15;
+                    if (percent > 85) clearInterval(interval);
+                    const el = document.getElementById(`percent_${tempId}`);
+                    if (el) el.innerText = `${percent}%`;
+                }, 120);
 
-                const result = await response.json();
-
-                if (result.status === 'success' && result.files) {
-                    progressBar.style.width = '100%';
-                    progressPercent.innerText = '100%';
-
-                    result.files.forEach(f => {
-                        photos.push({
-                            id: f.id,
-                            albumId: currentAlbumId,
-                            url: f.url,
-                            downloadUrl: f.downloadUrl,
-                            name: f.name,
-                            downloaded: false
-                        });
+                // 2. ส่งไฟล์เข้า Google Drive
+                try {
+                    const response = await fetch(googleScriptUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({
+                            albumTitle: albumTitle,
+                            parentFolderId: parentDriveFolderId,
+                            file: { name: file.name, type: file.type, base64: base64 }
+                        })
                     });
 
-                    saveCurrentPhotos();
-                    setTimeout(() => {
-                        progressContainer.classList.add('hidden');
-                        renderAdminPhotoList();
-                        document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
-                        showToast(`อัปโหลดเข้า Google Drive สำเร็จ! รูปจะไปแสดงในฝั่งลูกค้าทันที`);
-                    }, 800);
-                } else {
-                    throw new Error(result.message || "Upload Failed");
-                }
+                    const result = await response.json();
+                    clearInterval(interval);
 
-            } catch (err) {
-                filePayloads.forEach(f => {
-                    photos.push({
+                    if (result.status === 'success' && result.file) {
+                        const percentEl = document.getElementById(`percent_${tempId}`);
+                        if (percentEl) percentEl.innerText = '100%';
+
+                        // อัปเดตการ์ดพรีวิวเป็นการ์ดรูปถ่ายสมบูรณ์
+                        setTimeout(() => {
+                            card.innerHTML = `
+                                <img src="${result.file.url}" class="w-full h-full object-cover">
+                                <button onclick="deletePhoto('${result.file.id}')" class="absolute top-2 right-2 w-7 h-7 bg-rose-600/90 hover:bg-rose-500 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                                <div class="absolute bottom-0 inset-x-0 bg-black/70 p-1 text-[10px] text-slate-300 truncate text-center">
+                                    ${result.file.name}
+                                </div>
+                            `;
+                        }, 300);
+
+                        photos.push(result.file);
+                        saveCurrentPhotos();
+                        document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
+                    } else {
+                        throw new Error(result.message || "Upload Failed");
+                    }
+
+                } catch (err) {
+                    clearInterval(interval);
+                    // Fallback กรณีเซิร์ฟเวอร์ขัดข้อง ให้แสดงภาพออฟไลน์ไว้ชั่วคราว
+                    const fallbackObj = {
                         id: 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                         albumId: currentAlbumId,
-                        url: f.base64,
-                        name: f.name,
+                        url: base64,
+                        name: file.name,
                         downloaded: false
-                    });
-                });
-                saveCurrentPhotos();
-                progressContainer.classList.add('hidden');
-                renderAdminPhotoList();
-                document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
-                showToast(`เพิ่มรูปภาพเข้าอัลบั้มเรียบร้อยแล้ว`);
+                    };
+                    photos.push(fallbackObj);
+                    saveCurrentPhotos();
+
+                    card.innerHTML = `
+                        <img src="${base64}" class="w-full h-full object-cover">
+                        <button onclick="deletePhoto('${fallbackObj.id}')" class="absolute top-2 right-2 w-7 h-7 bg-rose-600/90 hover:bg-rose-500 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                        <div class="absolute bottom-0 inset-x-0 bg-black/70 p-1 text-[10px] text-slate-300 truncate text-center">
+                            ${file.name}
+                        </div>
+                    `;
+                    document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
+                }
             }
+            showToast('อัปโหลดและประมวลผลรูปภาพเรียบร้อยแล้ว');
         }
 
         function readFileAsDataURL(file) {
