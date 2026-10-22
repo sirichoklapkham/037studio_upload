@@ -575,26 +575,26 @@
             window.open(`https://drive.google.com/drive/search?q=${searchQuery}`, '_blank');
         }
 
-        // ================= TIMER & AUTO DELETE SYSTEM (FIXED FOR MOBILE / SAFARI) =================
+        // ================= TIMER & AUTO DELETE SYSTEM (FIXED FOR MOBILE / EXPIRE DAYS) =================
         function startGlobalTimer() {
             if (countdownTimerInterval) clearInterval(countdownTimerInterval);
             countdownTimerInterval = setInterval(updateAllCountdowns, 1000);
             updateAllCountdowns();
         }
 
-        // ฟังก์ชันสำหรับแกะ String วันที่สร้างให้อ่านค่าได้ 100% บน iOS / Safari
+        // ฟังก์ชันแปลงวันที่ที่ปลอดภัยกับ iOS/Safari 100%
         function safeParseDate(dateInput) {
             if (!dateInput) return null;
             if (dateInput instanceof Date) return isNaN(dateInput.getTime()) ? null : dateInput;
 
             let str = String(dateInput).trim();
             
-            // 1. ลองพาร์สแบบ ISO Standard ที่ iOS Safari รองรับ (แทนที่ช่องว่างด้วย T)
+            // ลองพาร์สแบบ ISO Standard ที่ Safari รองรับ
             let isoFormatted = str.replace(" ", "T");
             let d = new Date(isoFormatted);
             if (!isNaN(d.getTime())) return d;
 
-            // 2. ถ้าเป็น String แบบไทย หรือ วัน/เดือน/ปี เช่น 2026-10-23 03:30:00
+            // พาร์สรูปแบบวันที่ทั่วไป YYYY-MM-DD HH:mm:ss
             let parts = str.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
             if (parts) {
                 return new Date(
@@ -610,7 +610,7 @@
             return null;
         }
 
-        // ฟังก์ชันช่วยสกัด Date object จากชื่ออัลบั้ม (เช่น 037Studio_23.10.69_13:00)
+        // สกัดวันที่/เวลาจากชื่ออัลบั้ม (เช่น 037Studio_23.10.69_13:00)
         function parseDateFromTitle(title) {
             if (!title) return null;
             const match = title.match(/(\d{2})\.(\d{2})\.(\d{2,4})(?:_(\d{2}):(\d{2}))?/);
@@ -636,24 +636,35 @@
         }
 
         function getCountdownInfo(album) {
-            if (!album || album.expireDays === 0 || album.expireDays === "0") {
+            if (!album) {
                 return { text: "ไม่ลบอัตโนมัติ", isExpired: false, totalSeconds: Infinity };
             }
 
-            let expireDays = album.expireDays !== undefined ? parseFloat(album.expireDays) : 7;
+            // ตรวจสอบค่า expireDays (รองรับทั้งทศนิยมและ 0)
+            let expireDays = album.expireDays !== undefined ? parseFloat(album.expireDays) : null;
+            
+            if (expireDays === 0) {
+                return { text: "ไม่ลบอัตโนมัติ", isExpired: false, totalSeconds: Infinity };
+            }
+
+            // หากไม่มีกำหนดไว้ ให้ดึงจาก LocalStorage ถ้าไม่มีจริงๆ จึงถือเป็น 7 วัน
+            if (expireDays === null || isNaN(expireDays)) {
+                expireDays = 7;
+            }
+
             let createdDate = null;
 
-            // 1. ดึงวันที่สร้างจาก createdAt ที่เซิร์ฟเวอร์ส่งมา
+            // 1. ดึงวันที่สร้างจาก createdAt
             if (album.createdAt) {
                 createdDate = safeParseDate(album.createdAt);
             }
 
-            // 2. หาก createdAt อ่านค่าไม่ได้ ให้แกะวันที่และเวลาจากชื่ออัลบั้ม
+            // 2. หากไม่มี ให้ดึงจากชื่ออัลบั้ม
             if (!createdDate && album.title) {
                 createdDate = parseDateFromTitle(album.title);
             }
 
-            // 3. ป้องกันกรณีอ่านไม่ได้เลย ให้ใช้วันเวลาปัจจุบัน
+            // 3. ป้องกันกรณีหาไม่เจอ ใช้วันเวลาปัจจุบัน
             if (!createdDate) {
                 createdDate = new Date();
             }
@@ -707,9 +718,9 @@
             }
 
             if (currentAlbumId && currentMode === 'customer') {
-                let curAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId) || { id: currentAlbumId, title: currentAlbumId, expireDays: 7 };
+                let curAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
                 let custExpireEl = document.getElementById('customerExpireText');
-                if (custExpireEl) {
+                if (custExpireEl && curAlbum) {
                     let info = getCountdownInfo(curAlbum);
                     custExpireEl.innerText = info.text;
                     if (info.isExpired) {
@@ -820,6 +831,7 @@
                         let localMatch = albums.find(a => a.title === driveAlbum.title || a.id === driveAlbum.id);
                         if (localMatch) {
                             driveAlbum.createdAt = driveAlbum.createdAt || localMatch.createdAt;
+                            // ไม่เขียนทับ expireDays ถ้ามีค่าเดิมที่บันทึกไว้ใน LocalStorage
                             driveAlbum.expireDays = localMatch.expireDays !== undefined ? localMatch.expireDays : 7;
                             if (localMatch.folderId) driveAlbum.folderId = localMatch.folderId;
                             if (localMatch.folderUrl) driveAlbum.folderUrl = localMatch.folderUrl;
@@ -1030,11 +1042,16 @@
                 await fetchAlbumsFromDrive();
             }
 
-            const currentAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId) || { id: currentAlbumId, title: currentAlbumId, expireDays: 7 };
-            const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
+            let currentAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
+            if (!currentAlbum) {
+                currentAlbum = { id: currentAlbumId, title: currentAlbumId, expireDays: 7 };
+                albums.unshift(currentAlbum);
+            }
+            
+            const albumTitle = currentAlbum.title;
 
             document.getElementById('customerAlbumTitle').innerText = albumTitle;
-            document.getElementById('customerAlbumSub').innerText = (currentAlbum && currentAlbum.sub) ? currentAlbum.sub : 'รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว';
+            document.getElementById('customerAlbumSub').innerText = currentAlbum.sub ? currentAlbum.sub : 'รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว';
 
             let info = getCountdownInfo(currentAlbum);
             document.getElementById('customerExpireText').innerText = info.text;
