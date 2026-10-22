@@ -430,13 +430,14 @@
 
     <!-- ================= APP LOGIC JAVASCRIPT ================= -->
     <script>
-        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzuKkWiU5C0c5AS2hrVCsCnEPaS5uQMmgcwgtIgmSZ_-A_W9dYDY8Eb7lMCsuocF4Vg/exec";
+        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz0up6EMmlmMik9xIHInkODrj9sqf7HoVWX7AHsuHQhMhwzDzsaLRvdG7ywvhrkMIBq/exec";
         let googleScriptUrl = DEFAULT_SCRIPT_URL;
         let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
 
         let currentMode = 'admin';
         let isCustomerSharedLink = false;
         let currentAlbumId = '';
+        let currentAlbumFolderId = '';
         let albums = [];
         let photos = [];
         let isSelectMode = false;
@@ -482,40 +483,44 @@
             startGlobalTimer();
         };
 
-        // ฟังก์ชันเปิดไปโฟลเดอร์ Google Drive ของอัลบั้มนั้นๆ ทันที
-        function openCurrentAlbumDriveLink() {
+        // ฟังก์ชันเปิดลิงก์ไปยังโฟลเดอร์ Google Drive แบบใช้ ID ตรงเท่านั้น (ไม่มีการเปิดหน้า search)
+        async function openCurrentAlbumDriveLink() {
+            let targetFolderId = currentAlbumFolderId;
+
+            // 1. ตรวจสอบในตัวแปรอัลบั้ม
             const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
-            const albumTitle = album ? album.title : currentAlbumId;
-
-            // 1. ตรวจสอบว่ามี folderUrl หรือ folderId บันทึกไว้อยู่แล้วหรือไม่
-            if (album && album.folderUrl) {
-                window.open(album.folderUrl, '_blank');
-                return;
-            }
-            if (album && album.folderId) {
-                window.open(`https://drive.google.com/drive/folders/${album.folderId}`, '_blank');
-                return;
+            if (!targetFolderId && album) {
+                targetFolderId = album.folderId;
             }
 
-            // 2. ดึงข้อมูลจากไฟล์รูปภาพเพื่อระบุตำแหน่งโฟลเดอร์ใน Google Drive ได้ถูกต้อง 100%
-            if (photos && photos.length > 0) {
-                const firstPhoto = photos[0];
-                if (firstPhoto.folderId) {
-                    window.open(`https://drive.google.com/drive/folders/${firstPhoto.folderId}`, '_blank');
-                    return;
-                }
-                if (firstPhoto.url) {
-                    const match = firstPhoto.url.match(/id=([a-zA-Z0-9_-]+)/);
-                    if (match && match[1]) {
-                        window.open(`https://drive.google.com/file/d/${match[1]}/view`, '_blank');
-                        return;
+            // 2. ตรวจสอบในข้อมูลรูปภาพ
+            if (!targetFolderId && photos && photos.length > 0) {
+                const firstPhoto = photos.find(p => p.folderId);
+                if (firstPhoto) targetFolderId = firstPhoto.folderId;
+            }
+
+            // 3. ถ้ายังไม่มี ID โฟลเดอร์ ให้ดึงจาก Apps Script ทันที
+            if (!targetFolderId) {
+                const albumTitle = album ? album.title : currentAlbumId;
+                showToast('กำลังเตรียมลิงก์ Google Drive...');
+                try {
+                    const res = await fetch(`${googleScriptUrl}?action=getPhotos&albumTitle=${encodeURIComponent(albumTitle)}&parentFolderId=${parentDriveFolderId}`);
+                    const data = await res.json();
+                    if (data.status === 'success' && data.folderId) {
+                        targetFolderId = data.folderId;
+                        currentAlbumFolderId = data.folderId;
                     }
+                } catch (e) {
+                    console.log('Error fetching folderId dynamically', e);
                 }
             }
 
-            // 3. กรณีสำรอง ค้นหาโฟลเดอร์ที่ชื่อตรงกับอัลบั้มนั้นใน Google Drive
-            const searchQuery = encodeURIComponent(`mimeType = 'application/vnd.google-apps.folder' and name = '${albumTitle}'`);
-            window.open(`https://drive.google.com/drive/search?q=${searchQuery}`, '_blank');
+            // 4. เปิดโฟลเดอร์โดยตรงผ่าน ID
+            if (targetFolderId) {
+                window.open(`https://drive.google.com/drive/folders/${targetFolderId}`, '_blank');
+            } else {
+                alert('ไม่สามารถดึงลิงก์โฟลเดอร์ Google Drive ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง');
+            }
         }
 
         // ================= TIMER & AUTO DELETE SYSTEM =================
@@ -722,6 +727,8 @@
                     if (data.status === 'success' && data.photos) {
                         localStorage.setItem(`sikram_photos_${album.id}`, JSON.stringify(data.photos));
                         
+                        if (data.folderId) album.folderId = data.folderId;
+                        
                         const coverImg = document.getElementById(`cover_img_${album.id}`);
                         const countBadge = document.getElementById(`count_badge_${album.id}`);
                         if (coverImg && data.photos.length > 0) {
@@ -735,6 +742,7 @@
                     console.log('Prefetch error for', album.title);
                 }
             }
+            saveAlbums();
         }
 
         async function fetchPhotosFromDrive(albumTitle) {
@@ -744,10 +752,11 @@
                 if (data.status === 'success' && data.photos) {
                     photos = data.photos;
                     
-                    if (data.folderId || data.folderUrl) {
+                    if (data.folderId) {
+                        currentAlbumFolderId = data.folderId;
                         let album = albums.find(a => a.id === currentAlbumId || a.title === albumTitle);
                         if (album) {
-                            if (data.folderId) album.folderId = data.folderId;
+                            album.folderId = data.folderId;
                             if (data.folderUrl) album.folderUrl = data.folderUrl;
                             saveAlbums();
                         }
@@ -871,6 +880,7 @@
         async function openSingleAlbumAdmin(albumId) {
             currentAlbumId = albumId;
             const album = albums.find(a => a.id === albumId) || { title: albumId, sub: '' };
+            if (album.folderId) currentAlbumFolderId = album.folderId;
             
             document.getElementById('adminActiveTitle').innerText = album.title;
             document.getElementById('adminActiveSub').innerText = album.sub || 'รายละเอียดอัลบั้ม';
@@ -902,6 +912,7 @@
             
             const currentAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId) || { id: currentAlbumId, expireDays: 7 };
             const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
+            if (currentAlbum && currentAlbum.folderId) currentAlbumFolderId = currentAlbum.folderId;
 
             document.getElementById('customerAlbumTitle').innerText = albumTitle;
             document.getElementById('customerAlbumSub').innerText = (currentAlbum && currentAlbum.sub) ? currentAlbum.sub : 'รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว';
@@ -1280,6 +1291,8 @@
                     if (result.status === 'success' && result.file) {
                         const percentEl = document.getElementById(`percent_${entry.tempId}`);
                         if (percentEl) percentEl.innerText = '100%';
+
+                        if (result.file.folderId) currentAlbumFolderId = result.file.folderId;
 
                         setTimeout(() => {
                             entry.card.innerHTML = `
