@@ -530,16 +530,20 @@
             openModal('modalDriveTutorial');
         }
 
-        // ปรับปรุงฟังก์ชันให้เปิดลิงก์ไปยังโฟลเดอร์ Google Drive ของอัลบั้มนั้นโดยตรง
+        // ฟังก์ชันเปิดไปโฟลเดอร์ Google Drive ของอัลบั้มลูกค้า
         function openCurrentAlbumDriveLink() {
             const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
-            
-            if (album && album.folderId) {
+            const albumTitle = album ? album.title : currentAlbumId;
+
+            if (album && album.folderUrl) {
+                window.open(album.folderUrl, '_blank');
+            } else if (album && album.folderId) {
                 window.open(`https://drive.google.com/drive/folders/${album.folderId}`, '_blank');
             } else {
-                const albumTitle = album ? album.title : currentAlbumId;
-                const driveFolderUrl = `https://drive.google.com/drive/search?q=${encodeURIComponent(albumTitle)}`;
-                window.open(driveFolderUrl, '_blank');
+                // ถ้าไม่มี ID ตรงๆ จะนำทางผ่านระบบค้นหาโฟลเดอร์ Google Drive ตามชื่ออัลบั้ม (เช่น 037STUDIO gggggg)
+                const searchQuery = encodeURIComponent(`mimeType = 'application/vnd.google-apps.folder' and name = '${albumTitle}'`);
+                const driveSearchUrl = `https://drive.google.com/drive/search?q=${searchQuery}`;
+                window.open(driveSearchUrl, '_blank');
             }
         }
 
@@ -721,6 +725,7 @@
                             driveAlbum.createdAt = localMatch.createdAt;
                             driveAlbum.expireDays = localMatch.expireDays;
                             if (localMatch.folderId) driveAlbum.folderId = localMatch.folderId;
+                            if (localMatch.folderUrl) driveAlbum.folderUrl = localMatch.folderUrl;
                         } else {
                             driveAlbum.createdAt = new Date().toISOString();
                             driveAlbum.expireDays = 7;
@@ -1396,6 +1401,7 @@
             showToast(`กำลังสร้างอัลบั้มบน Google Drive...`);
 
             let folderId = null;
+            let folderUrl = null;
             try {
                 const res = await fetch(googleScriptUrl, {
                     method: 'POST',
@@ -1410,6 +1416,7 @@
                 const data = await res.json();
                 if (data.status === 'success') {
                     if (data.folderId) folderId = data.folderId;
+                    if (data.folderUrl) folderUrl = data.folderUrl;
                     showToast(`สร้างอัลบั้ม "${title}" บน Google Drive สำเร็จ!`);
                 }
             } catch (err) {
@@ -1422,6 +1429,7 @@
                 sub: sub,
                 expireDays: expireDays,
                 folderId: folderId,
+                folderUrl: folderUrl,
                 createdAt: new Date().toISOString()
             };
 
