@@ -90,7 +90,11 @@
                     <h2 class="text-xl font-bold text-white mt-1">อัลบั้มภาพถ่ายลูกค้าทั้งหมด</h2>
                     <p class="text-xs text-slate-400">เลือกอัลบั้มเพื่อเพิ่มรูปภาพ ส่งลิงก์ให้ลูกค้า หรือกำหนดวันลบอัตโนมัติ</p>
                 </div>
-                <div>
+                <div class="flex items-center gap-2">
+                    <button onclick="fetchAlbumsFromDrive()" class="px-3 py-2.5 bg-navy-800 hover:bg-navy-700 text-sky-400 border border-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>ดึงข้อมูลซิงค์</span>
+                    </button>
                     <button onclick="openCreateAlbumModal()" class="w-full sm:w-auto px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition shadow-lg shadow-sky-900">
                         <i class="fa-solid fa-folder-plus text-sm"></i>
                         <span>สร้างอัลบั้มลูกค้าใหม่</span>
@@ -432,7 +436,7 @@
 
     <!-- ================= APP LOGIC JAVASCRIPT ================= -->
     <script>
-        let googleScriptUrl = "https://script.google.com/macros/s/AKfycbw6haKYioAuOO3gBGRbi3gZEovHwaVxP1teuvebTJ_OHnL-k-0dUUSaoc_xgYNXIql3/exec";
+        let googleScriptUrl = "https://script.google.com/macros/s/AKfycbzDirwpSreyfzehdsf6P23RLc3Stu6W8zZ0psvb6NdbMg_2l3gVb4Na5-nzYJY0t-PO/exec";
         let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
 
         let currentMode = 'admin';
@@ -445,33 +449,24 @@
         let currentLightboxPhotoId = null;
         let photosToSaveToGallery = [];
 
-        const SAMPLE_PHOTOS = [
-            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
-            'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80',
-            'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&auto=format&fit=crop&q=80'
-        ];
-
-        window.onload = function() {
+        window.onload = async function() {
             const urlParams = new URLSearchParams(window.location.search);
             const albumParam = urlParams.get('album');
             
             loadStorageData();
-            checkAndCleanExpiredAlbums();
             setupDragAndDrop();
 
-            // หากเปิดผ่านลิงก์แชร์ของลูกค้า (?album=...) -> สลับเข้าโหมดลูกค้าอัตโนมัติ และล็อกสิทธิ์แก้ไข
+            // ดึงข้อมูลอัลบั้มตั้งต้นจาก Google Drive ทันทีเมื่อเปิดเว็บ
+            await fetchAlbumsFromDrive();
+
             if (albumParam) {
                 isCustomerSharedLink = true;
-                const found = albums.find(a => a.id === albumParam);
-                if (found) {
-                    currentAlbumId = found.id;
-                } else {
-                    currentAlbumId = albumParam;
-                }
-                loadPhotosForCurrentAlbum();
+                currentAlbumId = albumParam;
+                
+                // ดึงรูปถ่ายเฉพาะของอัลบั้มนี้จาก Google Drive มาแสดงผล
+                await fetchPhotosFromDrive(albumParam);
                 switchMode('customer');
                 
-                // ซ่อนส่วนสลับแอดมิน เพื่อป้องกันไม่ให้ลูกค้าเปลี่ยนกลับเป็นแอดมิน
                 const viewSwitcher = document.getElementById('viewSwitcherContainer');
                 if (viewSwitcher) viewSwitcher.classList.add('hidden');
                 return;
@@ -525,52 +520,36 @@
             document.getElementById('inputDriveFolderId').value = parentDriveFolderId;
 
             const savedAlbums = localStorage.getItem('sikram_albums');
-            if (savedAlbums) {
-                albums = JSON.parse(savedAlbums);
-            } else {
-                const defaultAlbum = {
-                    id: '037STUDIO-22-10-69-14-00',
-                    title: '037STUDIO-22-10-69-14-00',
-                    sub: 'ถ่ายสตูดิโอประจำวันที่ 22 ต.ค. 2569',
-                    expireDays: 7,
-                    createdAt: new Date().toISOString()
-                };
-                albums = [defaultAlbum];
-                localStorage.setItem('sikram_albums', JSON.stringify(albums));
-
-                const defaultPhotos = SAMPLE_PHOTOS.map((url, idx) => ({
-                    id: 'photo_' + Date.now() + '_' + idx,
-                    albumId: defaultAlbum.id,
-                    url: url,
-                    name: `037STUDIO_22-10-69_${idx + 1}.jpg`,
-                    downloaded: false
-                }));
-                localStorage.setItem(`sikram_photos_${defaultAlbum.id}`, JSON.stringify(defaultPhotos));
-            }
-
-            if (albums.length > 0 && !currentAlbumId) {
-                currentAlbumId = albums[0].id;
-            }
-            loadPhotosForCurrentAlbum();
+            if (savedAlbums) albums = JSON.parse(savedAlbums);
         }
 
-        function checkAndCleanExpiredAlbums() {
-            const now = new Date();
-            let updated = false;
-
-            albums.forEach(album => {
-                if (album.expireDays && album.expireDays > 0) {
-                    const createdDate = new Date(album.createdAt);
-                    const expireDate = new Date(createdDate.getTime() + album.expireDays * 24 * 60 * 60 * 1000);
-
-                    if (now > expireDate) {
-                        album.isExpired = true;
-                        updated = true;
-                    }
+        // ดึงรายการอัลบั้มจาก Google Drive
+        async function fetchAlbumsFromDrive() {
+            try {
+                const res = await fetch(`${googleScriptUrl}?action=getAlbums&parentFolderId=${parentDriveFolderId}`);
+                const data = await res.json();
+                if (data.status === 'success' && data.albums) {
+                    albums = data.albums;
+                    saveAlbums();
+                    if (currentMode === 'admin') renderAdminDashboard();
                 }
-            });
+            } catch (err) {
+                console.log('Error fetching albums from drive', err);
+            }
+        }
 
-            if (updated) saveAlbums();
+        // ดึงรายการรูปภาพจาก Google Drive
+        async function fetchPhotosFromDrive(albumTitle) {
+            try {
+                const res = await fetch(`${googleScriptUrl}?action=getPhotos&albumTitle=${encodeURIComponent(albumTitle)}&parentFolderId=${parentDriveFolderId}`);
+                const data = await res.json();
+                if (data.status === 'success' && data.photos) {
+                    photos = data.photos;
+                    saveCurrentPhotos();
+                }
+            } catch (err) {
+                console.log('Error fetching photos from drive', err);
+            }
         }
 
         function loadPhotosForCurrentAlbum() {
@@ -594,6 +573,7 @@
             localStorage.setItem('sikram_script_url', googleScriptUrl);
             localStorage.setItem('sikram_drive_folder', parentDriveFolderId);
             showToast('บันทึกการตั้งค่าระบบจัดเก็บเรียบร้อย');
+            fetchAlbumsFromDrive();
         }
 
         function toggleSettingsPanel() {
@@ -650,10 +630,6 @@
                 const albumPhotos = JSON.parse(localStorage.getItem(`sikram_photos_${album.id}`)) || [];
                 const coverPhoto = albumPhotos.length > 0 ? albumPhotos[0].url : 'https://placehold.co/400x300/133050/ffffff?text=Studio+Album';
 
-                const created = new Date(album.createdAt);
-                const expireDays = album.expireDays || 7;
-                const daysLeft = Math.max(0, expireDays - Math.floor((new Date() - created) / (1000 * 60 * 60 * 24)));
-
                 const card = document.createElement('div');
                 card.className = "bg-navy-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl hover:border-sky-500/50 transition cursor-pointer group flex flex-col justify-between";
                 card.innerHTML = `
@@ -663,7 +639,7 @@
                             <div class="absolute inset-0 bg-gradient-to-t from-navy-950 via-transparent to-transparent"></div>
                             
                             <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] text-amber-400 border border-slate-700 flex items-center gap-1 font-semibold">
-                                <i class="fa-regular fa-clock"></i> ${expireDays === 0 ? 'ไม่มีวันหมดอายุ' : `ลบใน ${daysLeft} วัน`}
+                                <i class="fa-regular fa-clock"></i> 7 วัน
                             </div>
 
                             <div class="absolute bottom-3 right-3 bg-sky-600 text-white px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow">
@@ -690,16 +666,18 @@
             });
         }
 
-        function openSingleAlbumAdmin(albumId) {
+        async function openSingleAlbumAdmin(albumId) {
             currentAlbumId = albumId;
-            loadPhotosForCurrentAlbum();
-            
             const album = albums.find(a => a.id === albumId) || { title: albumId, sub: '' };
+            
             document.getElementById('adminActiveTitle').innerText = album.title;
             document.getElementById('adminActiveSub').innerText = album.sub || 'รายละเอียดอัลบั้ม';
-            document.getElementById('adminActiveExpire').innerText = album.expireDays ? `${album.expireDays} วัน` : 'ไม่กำหนดวันลบ';
-            document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
+            
+            // โหลดและดึงรูปถ่ายสดๆ จาก Google Drive
+            showToast('กำลังโหลดรูปภาพจาก Google Drive...');
+            await fetchPhotosFromDrive(album.title || albumId);
 
+            document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
             document.getElementById('adminAlbumGridSection').classList.add('hidden');
             document.getElementById('adminSingleAlbumSection').classList.remove('hidden');
 
@@ -714,15 +692,18 @@
 
 
         // ================= CUSTOMER GALLERY RENDER =================
-        function renderCustomerGallery() {
+        async function renderCustomerGallery() {
             const grid = document.getElementById('photosGrid');
             const emptyState = document.getElementById('emptyCustomerState');
             
-            loadPhotosForCurrentAlbum();
             const currentAlbum = albums.find(a => a.id === currentAlbumId);
+            const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
 
-            document.getElementById('customerAlbumTitle').innerText = currentAlbum ? currentAlbum.title : currentAlbumId;
+            document.getElementById('customerAlbumTitle').innerText = albumTitle;
             document.getElementById('customerAlbumSub').innerText = (currentAlbum && currentAlbum.sub) ? currentAlbum.sub : 'รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว';
+
+            // ดึงรูปถ่ายเฉพาะอัลบั้มนี้สดๆ จาก Google Drive
+            await fetchPhotosFromDrive(albumTitle);
 
             document.getElementById('totalPhotosCount').innerText = photos.length;
             document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
@@ -937,7 +918,7 @@
             e.target.value = '';
         }
 
-        // ประมวลผลการอัปโหลดไฟล์ พร้อมส่งไป Google Drive & ซิงค์ข้อมูลแสดงผลลูกค้า
+        // อัปโหลดรูปขึ้น Google Drive
         async function uploadFilesProcess(files) {
             const currentAlbum = albums.find(a => a.id === currentAlbumId);
             const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
@@ -987,7 +968,7 @@
 
                     result.files.forEach(f => {
                         photos.push({
-                            id: f.id || 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                            id: f.id,
                             albumId: currentAlbumId,
                             url: f.url,
                             downloadUrl: f.downloadUrl,
@@ -1008,7 +989,6 @@
                 }
 
             } catch (err) {
-                // Fallback กรณีเซิร์ฟเวอร์ตอบกลับล่าช้า ให้เก็บภาพไว้แสดงผลชั่วคราวเพื่อให้แน่ใจว่ารูปจะปรากฏฝั่งลูกค้าแน่นอน
                 filePayloads.forEach(f => {
                     photos.push({
                         id: 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
@@ -1051,6 +1031,7 @@
             openModal('modalCreateAlbum');
         }
 
+        // บันทึกสร้างอัลบั้ม -> สร้างโฟลเดอร์บน Google Drive และซิงค์รายการอัลบั้ม
         async function saveNewAlbum() {
             const title = document.getElementById('inputAlbumTitle').value.trim();
             const sub = document.getElementById('inputAlbumSub').value.trim();
@@ -1061,27 +1042,11 @@
                 return;
             }
 
-            const newAlbum = {
-                id: title.replace(/\s+/g, '-'),
-                title: title,
-                sub: sub || 'อัลบั้มถ่ายภาพสตูดิโอ',
-                expireDays: expireDays,
-                createdAt: new Date().toISOString()
-            };
-
-            albums.unshift(newAlbum);
-            saveAlbums();
-
-            currentAlbumId = newAlbum.id;
-            photos = [];
-            saveCurrentPhotos();
-
             closeModal('modalCreateAlbum');
-            renderAdminDashboard();
-            showToast(`กำลังสร้างโฟลเดอร์ใน Google Drive...`);
+            showToast(`กำลังสร้างอัลบั้มบน Google Drive...`);
 
             try {
-                fetch(googleScriptUrl, {
+                const res = await fetch(googleScriptUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({
@@ -1090,9 +1055,17 @@
                         parentFolderId: parentDriveFolderId
                     })
                 });
+
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(`สร้างอัลบั้ม "${title}" บน Google Drive สำเร็จ!`);
+                }
             } catch (err) {
-                console.log('Google Drive folder creation requested');
+                console.log('Google Drive folder creation error');
             }
+
+            // ดึงข้อมูลรายการอัลบั้มจาก Google Drive ใหม่เพื่ออัปเดตข้ามเครื่อง
+            await fetchAlbumsFromDrive();
         }
 
         function deleteCurrentAlbum() {
@@ -1114,7 +1087,11 @@
         }
 
         function openShareModalCurrent() {
-            const shareUrl = `${window.location.origin}${window.location.pathname}?album=${currentAlbumId}`;
+            const album = albums.find(a => a.id === currentAlbumId);
+            const albumTitle = album ? album.title : currentAlbumId;
+            
+            // ใช้ชื่ออัลบั้มจริงๆ ในพารามิเตอร์ลิงก์แชร์
+            const shareUrl = `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(albumTitle)}`;
             document.getElementById('shareShortUrlText').innerText = shareUrl;
 
             const qrContainer = document.getElementById('qrcodeCanvas');
