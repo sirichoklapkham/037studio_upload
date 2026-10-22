@@ -25,10 +25,6 @@
                             700: '#1c426c',
                             600: '#27588f',
                             500: '#3472b5',
-                        },
-                        accent: {
-                            cyan: '#00d2ff',
-                            emerald: '#10b981'
                         }
                     },
                     fontFamily: {
@@ -61,29 +57,151 @@
 </head>
 <body class="h-full text-slate-100 flex flex-col justify-between selection:bg-navy-500 selection:text-white">
 
-    <!-- Top Navigation / Header bar -->
+    <!-- Top Navigation Header -->
     <header class="bg-[#0a1b2d] border-b border-slate-800 sticky top-0 z-30 px-4 py-2.5 flex items-center justify-between text-xs sm:text-sm">
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center space-x-2 cursor-pointer" onclick="goToAdminDashboard()">
             <span class="font-bold tracking-wider text-slate-300">Powered by <span class="text-white font-black">SiKram</span></span>
             <span class="text-slate-500">— AI Photo Delivery</span>
         </div>
         
-        <!-- View Switcher (Admin / Customer Mode Toggle) -->
+        <!-- View Switcher Toggle -->
         <div class="flex items-center space-x-1 bg-navy-950 p-1 rounded-full border border-slate-700/60">
-            <button id="btnModeCustomer" onclick="switchMode('customer')" class="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-navy-600 text-white shadow-sm">
-                <i class="fa-solid fa-user text-[10px] mr-1"></i> ลูกค้า
-            </button>
-            <button id="btnModeAdmin" onclick="switchMode('admin')" class="px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:text-white transition-all duration-200">
+            <button id="btnModeAdmin" onclick="switchMode('admin')" class="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-navy-600 text-white shadow-sm">
                 <i class="fa-solid fa-user-gear text-[10px] mr-1"></i> แอดมิน
+            </button>
+            <button id="btnModeCustomer" onclick="switchMode('customer')" class="px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:text-white transition-all duration-200">
+                <i class="fa-solid fa-user text-[10px] mr-1"></i> ลูกค้า
             </button>
         </div>
     </header>
 
-    <!-- Main Container -->
+    <!-- Main Content View -->
     <main class="flex-1 overflow-y-auto pb-24 max-w-5xl w-full mx-auto px-3 sm:px-6 pt-4">
 
-        <!-- CUSTOMER VIEW -->
-        <section id="customerView" class="space-y-4">
+        <!-- ================= ADMIN VIEW (DEFAULT HOME) ================= -->
+        <section id="adminView" class="space-y-6">
+            
+            <!-- Banner & New Album Button -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-navy-900 via-navy-800 to-navy-900 p-5 rounded-2xl border border-slate-700">
+                <div>
+                    <span class="bg-amber-500/20 text-amber-400 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                        STUDIO ADMIN DASHBOARD
+                    </span>
+                    <h2 class="text-xl font-bold text-white mt-1">อัลบั้มภาพถ่ายลูกค้าทั้งหมด</h2>
+                    <p class="text-xs text-slate-400">เลือกอัลบั้มเพื่อเพิ่มรูปภาพ ส่งลิงก์ให้ลูกค้า หรือกำหนดวันลบอัตโนมัติ</p>
+                </div>
+                <div>
+                    <button onclick="openCreateAlbumModal()" class="w-full sm:w-auto px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition shadow-lg shadow-sky-900">
+                        <i class="fa-solid fa-folder-plus text-sm"></i>
+                        <span>สร้างอัลบั้มลูกค้าใหม่</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Google Drive Settings Bar -->
+            <div class="bg-navy-900 p-4 rounded-xl border border-slate-800 space-y-3">
+                <div class="flex items-center justify-between cursor-pointer" onclick="toggleSettingsPanel()">
+                    <span class="text-xs font-bold text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-gear text-sky-400"></i> ตั้งค่าระบบ Google Drive & การจัดเก็บ
+                    </span>
+                    <i id="iconSettingsChevron" class="fa-solid fa-chevron-down text-slate-500 text-xs"></i>
+                </div>
+                <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
+                        <input type="text" id="inputScriptUrl" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
+                        <input type="text" id="inputDriveFolderId" value="1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-[11px]">
+                    </div>
+                    <button onclick="saveDriveSettings()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs">
+                        บันทึกการตั้งค่า
+                    </button>
+                </div>
+            </div>
+
+            <!-- ALBUM CARDS GRID (Admin Album List) -->
+            <div id="adminAlbumGridSection" class="space-y-4">
+                <h3 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <i class="fa-solid fa-boxes-stacked text-sky-400"></i>
+                    <span>รายการอัลบั้มทั้งหมด (<span id="totalAlbumCount">0</span> อัลบั้ม)</span>
+                </h3>
+                <div id="adminAlbumGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <!-- Album Cards Injected Here -->
+                </div>
+            </div>
+
+            <!-- SINGLE ALBUM MANAGEMENT VIEW (When Album Clicked) -->
+            <div id="adminSingleAlbumSection" class="hidden space-y-5 border-t border-slate-800 pt-5">
+                <div class="flex items-center justify-between">
+                    <button onclick="closeSingleAlbumAdmin()" class="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
+                        <i class="fa-solid fa-arrow-left"></i> กลับไปหน้ารายการอัลบั้มทั้งหมด
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openShareModalCurrent()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs flex items-center gap-1.5 shadow">
+                            <i class="fa-solid fa-qrcode"></i> แชร์ให้ลูกค้า
+                        </button>
+                        <button onclick="deleteCurrentAlbum()" class="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-xs border border-rose-500/20">
+                            <i class="fa-regular fa-trash-can"></i> ลบอัลบั้ม
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Current Album Info Box -->
+                <div class="bg-navy-900 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row justify-between gap-3">
+                    <div>
+                        <span id="adminActiveTitle" class="text-base font-bold text-white uppercase font-mono">037STUDIO-22-10-69-14-00</span>
+                        <p id="adminActiveSub" class="text-xs text-slate-400 mt-0.5">รายละเอียดอัลบั้ม</p>
+                    </div>
+                    <div class="text-xs text-slate-400 space-y-1">
+                        <div><i class="fa-regular fa-clock mr-1 text-amber-400"></i> ลบอัตโนมัติใน: <span id="adminActiveExpire" class="text-white font-medium">7 วัน</span></div>
+                        <div><i class="fa-solid fa-images mr-1 text-sky-400"></i> รูปภาพทั้งหมด: <span id="adminActiveCount" class="text-white font-medium">0 รูป</span></div>
+                    </div>
+                </div>
+
+                <!-- Upload Area -->
+                <div class="bg-navy-900/90 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
+                    <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up text-sky-400"></i>
+                        <span>อัปโหลดรูปภาพเข้าอัลบั้มนี้ (Google Drive)</span>
+                    </h3>
+
+                    <div id="dropZone" onclick="document.getElementById('fileInput').click()" class="border-2 border-dashed border-slate-700 hover:border-sky-500 bg-navy-950/50 hover:bg-navy-950 rounded-xl p-6 text-center cursor-pointer transition group">
+                        <input type="file" id="fileInput" multiple accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                        <div class="w-12 h-12 bg-sky-500/10 text-sky-400 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition">
+                            <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                        </div>
+                        <p class="text-sm text-slate-200 font-medium">คลิกเพื่อเลือกรูปภาพ หรือลากไฟล์มาวางที่นี่</p>
+                        <p class="text-xs text-slate-500 mt-1">รูปจะถูกอัปโหลดเข้า Google Drive พร้อมแสดงผลให้ลูกค้าดาวน์โหลด</p>
+                    </div>
+
+                    <div id="uploadProgressContainer" class="hidden bg-navy-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                            <span id="uploadProgressStatus" class="text-slate-300 font-medium">กำลังอัปโหลด...</span>
+                            <span id="uploadProgressPercent" class="text-sky-400 font-bold">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                            <div id="uploadProgressBar" class="bg-gradient-to-r from-sky-500 to-emerald-400 h-2.5 rounded-full w-0 transition-all duration-200"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-slate-500">
+                            <span id="uploadCountText">0/0 รูป</span>
+                            <span id="uploadErrorText" class="text-rose-400"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Photo List -->
+                <div id="adminPhotoGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
+            </div>
+
+        </section>
+
+
+        <!-- ================= CUSTOMER GALLERY VIEW ================= -->
+        <section id="customerView" class="hidden space-y-4">
+            
+            <!-- Album Info Header Card -->
             <div class="bg-gradient-to-b from-[#15365a] to-[#0e243e] rounded-2xl p-5 border border-slate-700/50 shadow-xl text-center relative overflow-hidden">
                 <div class="absolute -right-10 -top-10 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl"></div>
                 <div class="inline-flex items-center px-3 py-1 rounded-full bg-slate-900/60 border border-slate-700 text-xs text-sky-400 mb-2">
@@ -92,6 +210,7 @@
                 <h1 id="customerAlbumTitle" class="text-lg sm:text-2xl font-bold tracking-wider text-white uppercase font-mono">037STUDIO-22-10-69-14-00</h1>
                 <p id="customerAlbumSub" class="text-xs text-slate-400 mt-1">รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว</p>
 
+                <!-- Download Progress Indicator -->
                 <div class="mt-4 flex items-center justify-center space-x-4 text-xs text-slate-300 bg-navy-950/60 py-2 px-4 rounded-xl max-w-sm mx-auto border border-slate-800">
                     <div>รูปทั้งหมด: <span id="totalPhotosCount" class="font-bold text-white">0</span></div>
                     <div class="w-px h-3 bg-slate-700"></div>
@@ -99,6 +218,7 @@
                 </div>
             </div>
 
+            <!-- Action Controls Bar -->
             <div class="flex items-center justify-between gap-2 py-1">
                 <div class="flex items-center gap-2">
                     <button id="btnSelectToggle" onclick="toggleSelectMode()" class="px-3.5 py-1.5 rounded-full bg-navy-800 hover:bg-navy-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-2 transition">
@@ -118,126 +238,25 @@
                     </button>
 
                     <div class="bg-navy-900 rounded-lg p-0.5 border border-slate-700 flex items-center">
-                        <button onclick="setGridCols(2)" class="p-1.5 px-2 text-slate-400 hover:text-white rounded active-grid text-xs"><i class="fa-solid fa-table-cells-large"></i></button>
+                        <button onclick="setGridCols(2)" class="p-1.5 px-2 text-slate-400 hover:text-white rounded text-xs"><i class="fa-solid fa-table-cells-large"></i></button>
                         <button onclick="setGridCols(3)" class="p-1.5 px-2 text-slate-400 hover:text-white rounded text-xs hidden sm:block"><i class="fa-solid fa-border-all"></i></button>
                     </div>
                 </div>
             </div>
 
+            <!-- Photos Grid -->
             <div id="photosGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4"></div>
 
             <div id="emptyCustomerState" class="hidden text-center py-16 bg-navy-900/40 rounded-2xl border border-dashed border-slate-800">
                 <i class="fa-regular fa-images text-4xl text-slate-600 mb-3"></i>
                 <p class="text-slate-400 text-sm">ยังไม่มีรูปภาพในอัลบั้มนี้</p>
-                <p class="text-xs text-slate-600 mt-1">โปรดสลับเป็นโหมด "แอดมิน" เพื่อสร้างอัลบั้มและอัปโหลดภาพลง Google Drive</p>
             </div>
+
         </section>
 
-        <!-- ADMIN VIEW -->
-        <section id="adminView" class="hidden space-y-6">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-navy-900 via-navy-800 to-navy-900 p-5 rounded-2xl border border-slate-700">
-                <div>
-                    <span class="bg-amber-500/20 text-amber-400 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border border-amber-500/30">
-                        ADMIN PANEL
-                    </span>
-                    <h2 class="text-xl font-bold text-white mt-1">ระบบจัดการอัลบั้มและอัปโหลดเข้า Google Drive</h2>
-                    <p class="text-xs text-slate-400">สร้างโฟลเดอร์ตามชื่ออัลบั้ม และบันทึกรูปลง Google Drive อัตโนมัติ</p>
-                </div>
-                <div>
-                    <button onclick="openCreateAlbumModal()" class="w-full sm:w-auto px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition shadow-lg shadow-sky-900">
-                        <i class="fa-solid fa-folder-plus text-sm"></i>
-                        <span>สร้างอัลบั้มใหม่</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Settings Settings Box -->
-            <div class="bg-navy-900 p-4 rounded-xl border border-slate-800 space-y-3">
-                <div class="flex items-center justify-between cursor-pointer" onclick="toggleSettingsPanel()">
-                    <span class="text-xs font-bold text-slate-300 flex items-center gap-2">
-                        <i class="fa-solid fa-gear text-sky-400"></i> ตั้งค่าการเชื่อมต่อ Google Drive
-                    </span>
-                    <i id="iconSettingsChevron" class="fa-solid fa-chevron-down text-slate-500 text-xs"></i>
-                </div>
-                <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
-                    <div>
-                        <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
-                        <input type="text" id="inputScriptUrl" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none>
-                    </div>
-                    <div>
-                        <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
-                        <input type="text" id="inputDriveFolderId" value="1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-[11px]">
-                    </div>
-                    <button onclick="saveDriveSettings()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs">
-                        บันทึกการตั้งค่า
-                    </button>
-                </div>
-            </div>
-
-            <!-- Album Selector Bar -->
-            <div class="bg-navy-900 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div class="w-full sm:w-auto flex-1">
-                    <label class="block text-xs text-slate-400 mb-1">อัลบั้มที่กำลังจัดการ:</label>
-                    <select id="adminAlbumSelect" onchange="switchAdminAlbum(this.value)" class="w-full bg-navy-950 border border-slate-700 text-white text-sm rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                    </select>
-                </div>
-                
-                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-                    <button onclick="openShareModal()" class="px-4 py-2.5 bg-emerald-600/90 hover:bg-emerald-600 text-white rounded-xl text-xs font-medium flex items-center justify-center gap-2 transition border border-emerald-500/30">
-                        <i class="fa-solid fa-qrcode text-sm"></i>
-                        <span>QR Code & ลิงก์ส่งลูกค้า</span>
-                    </button>
-                    <button onclick="deleteCurrentAlbum()" class="p-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl text-xs border border-rose-500/20 transition" title="ลบอัลบั้มนี้">
-                        <i class="fa-regular fa-trash-can text-sm"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Realtime Upload Box -->
-            <div class="bg-navy-900/90 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
-                <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                    <i class="fa-solid fa-cloud-arrow-up text-sky-400"></i>
-                    <span>อัปโหลดรูปภาพเข้า Google Drive</span>
-                </h3>
-
-                <div id="dropZone" onclick="document.getElementById('fileInput').click()" class="border-2 border-dashed border-slate-700 hover:border-sky-500 bg-navy-950/50 hover:bg-navy-950 rounded-xl p-6 text-center cursor-pointer transition group">
-                    <input type="file" id="fileInput" multiple accept="image/*" class="hidden" onchange="handleFileSelect(event)">
-                    <div class="w-12 h-12 bg-sky-500/10 text-sky-400 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition">
-                        <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
-                    </div>
-                    <p class="text-sm text-slate-200 font-medium">คลิกเพื่อเลือกรูปภาพ หรือลากไฟล์มาวางที่นี่</p>
-                    <p class="text-xs text-slate-500 mt-1">ระบบจะส่งรูปภาพไปสร้างโฟลเดอร์บน Google Drive ให้อัตโนมัติ</p>
-                </div>
-
-                <div id="uploadProgressContainer" class="hidden bg-navy-950 p-4 rounded-xl border border-slate-800 space-y-2">
-                    <div class="flex justify-between items-center text-xs">
-                        <span id="uploadProgressStatus" class="text-slate-300 font-medium">กำลังส่งไฟล์ไปยัง Google Drive...</span>
-                        <span id="uploadProgressPercent" class="text-sky-400 font-bold">0%</span>
-                    </div>
-                    <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                        <div id="uploadProgressBar" class="bg-gradient-to-r from-sky-500 to-emerald-400 h-2.5 rounded-full w-0 transition-all duration-200"></div>
-                    </div>
-                    <div class="flex justify-between text-[11px] text-slate-500">
-                        <span id="uploadCountText">0/0 รูป</span>
-                        <span id="uploadErrorText" class="text-rose-400"></span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Admin Photo Management List -->
-            <div class="space-y-3">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-semibold text-slate-300">
-                        รายการรูปภาพในอัลบั้ม (<span id="adminPhotoCount">0</span> รูป)
-                    </h3>
-                </div>
-
-                <div id="adminPhotoGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
-            </div>
-        </section>
     </main>
 
-    <!-- Bottom Navigation Bar -->
+    <!-- Bottom Nav Bar -->
     <div id="bottomNav" class="fixed bottom-0 left-0 right-0 z-30 flex justify-center pb-3 px-4 pointer-events-none">
         <nav class="pointer-events-auto bg-[#133050]/90 backdrop-blur-md border border-slate-600/50 rounded-full py-2 px-5 flex items-center justify-between max-w-md w-full shadow-2xl text-slate-300">
             <button class="flex flex-col items-center gap-0.5 text-sky-400 font-medium">
@@ -245,30 +264,33 @@
                 <span class="text-[10px]">อัลบั้ม</span>
                 <span class="w-4 h-0.5 bg-sky-400 rounded-full mt-0.5"></span>
             </button>
-            <button onclick="showToast('ฟังก์ชันค้นหาด้วยข้อความ')" class="flex flex-col items-center gap-0.5 hover:text-white transition opacity-70 hover:opacity-100">
+            <button onclick="showToast('ฟังก์ชันค้นหา')" class="flex flex-col items-center gap-0.5 hover:text-white transition opacity-70">
                 <i class="fa-solid fa-magnifying-glass text-base"></i>
                 <span class="text-[10px]">ค้นหา</span>
             </button>
-            <button onclick="showToast('ระบบสแกนใบหน้าค้นหารูปภาพอัตโนมัติ')" class="relative -top-4 bg-gradient-to-b from-sky-500 to-navy-700 p-3 rounded-full border-2 border-[#071320] text-white shadow-xl hover:scale-105 transition">
+            <button onclick="showToast('สแกนใบหน้าค้นหารูปภาพ')" class="relative -top-4 bg-gradient-to-b from-sky-500 to-navy-700 p-3 rounded-full border-2 border-[#071320] text-white shadow-xl hover:scale-105 transition">
                 <i class="fa-solid fa-face-smile text-xl"></i>
             </button>
-            <button onclick="showToast('ประวัติการดาวน์โหลด')" class="flex flex-col items-center gap-0.5 hover:text-white transition opacity-70 hover:opacity-100">
+            <button onclick="showToast('ประวัติการดาวน์โหลด')" class="flex flex-col items-center gap-0.5 hover:text-white transition opacity-70">
                 <i class="fa-regular fa-clock text-base"></i>
                 <span class="text-[10px]">ประวัติ</span>
             </button>
-            <button onclick="showToast('ภาษา / Language: TH')" class="flex flex-col items-center gap-0.5 hover:text-white transition opacity-70 hover:opacity-100">
+            <button onclick="showToast('Language: TH')" class="flex flex-col items-center gap-0.5 hover:text-white transition opacity-70">
                 <i class="fa-solid fa-language text-base"></i>
                 <span class="text-[10px]">Language</span>
             </button>
         </nav>
     </div>
 
-    <!-- MODALS & POPUPS -->
+
+    <!-- ================= MODALS & POPUPS ================= -->
+
+    <!-- Create / Edit Album Modal -->
     <div id="modalCreateAlbum" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-navy-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
                 <h3 class="text-base font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-folder-plus text-sky-400"></i> สร้างอัลบั้มใหม่
+                    <i class="fa-solid fa-folder-plus text-sky-400"></i> สร้างอัลบั้มลูกค้าใหม่
                 </h3>
                 <button onclick="closeModal('modalCreateAlbum')" class="text-slate-400 hover:text-white">
                     <i class="fa-solid fa-xmark text-lg"></i>
@@ -277,74 +299,114 @@
             
             <div class="space-y-3 text-xs">
                 <div>
-                    <label class="block text-slate-300 mb-1">ชื่ออัลบั้ม / รหัสงานลูกค้า (จะนำไปตั้งชื่อโฟลเดอร์ใน Drive)</label>
+                    <label class="block text-slate-300 mb-1">ชื่ออัลบั้ม / รหัสงานลูกค้า</label>
                     <input type="text" id="inputAlbumTitle" placeholder="เช่น 037STUDIO-22-10-69-14-00" class="w-full bg-navy-950 border border-slate-700 rounded-xl p-3 text-white text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-slate-300 mb-1">คำอธิบายเพิ่มเติม</label>
                     <input type="text" id="inputAlbumSub" placeholder="เช่น ถ่ายสตูดิโอชุดข้าราชการ" class="w-full bg-navy-950 border border-slate-700 rounded-xl p-3 text-white text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
                 </div>
+                <div>
+                    <label class="block text-slate-300 mb-1">ระยะเวลาจัดเก็บก่อนลบอัตโนมัติ (วัน)</label>
+                    <select id="inputAlbumExpireDays" class="w-full bg-navy-950 border border-slate-700 rounded-xl p-3 text-white text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                        <option value="3">3 วัน</option>
+                        <option value="7" selected>7 วัน (แนะนำ)</option>
+                        <option value="15">15 วัน</option>
+                        <option value="30">30 วัน</option>
+                        <option value="0">ไม่ลบอัตโนมัติ</option>
+                    </select>
+                </div>
             </div>
 
             <div class="flex justify-end gap-2 pt-2">
                 <button onclick="closeModal('modalCreateAlbum')" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs">ยกเลิก</button>
-                <button onclick="saveNewAlbum()" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs">สร้างอัลบั้ม</button>
+                <button onclick="saveNewAlbum()" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs">บันทึกสร้างอัลบั้ม</button>
             </div>
         </div>
     </div>
 
-    <!-- Share Modal -->
+
+    <!-- Download Prompt Modal (Matching Image Sample 6 Exactly) -->
+    <div id="modalSaveToGallery" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white text-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 animate-slide-up">
+            
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">ดาวน์โหลดรูปที่เลือก</h3>
+                    <p id="saveModalPhotoCount" class="text-xs text-slate-500">1 รูป</p>
+                </div>
+                <button onclick="closeModal('modalSaveToGallery')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Ready Indicator Box (Sample Image 6 Design) -->
+            <div class="bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 space-y-2">
+                <p class="text-xs font-semibold text-amber-900 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-check text-emerald-600"></i> รูปพร้อมแล้ว แตะปุ่มด้านล่างเพื่อบันทึกลงเครื่อง
+                </p>
+                <div class="w-full bg-amber-200/50 rounded-full h-1.5 overflow-hidden">
+                    <div class="bg-navy-800 h-1.5 rounded-full w-full"></div>
+                </div>
+            </div>
+
+            <!-- Instruction Box -->
+            <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 text-xs space-y-1">
+                <p class="font-bold text-slate-800">เมื่อหน้าต่างเด้งขึ้นมา เลือก "บันทึกรูปภาพ" (Save Image)</p>
+                <p class="text-[11px] text-slate-500">รูปภาพจะถูกบันทึกลงในแกลเลอรีรูปภาพบนมือถือของคุณทันที</p>
+            </div>
+
+            <!-- Primary Action Button -->
+            <button id="btnTriggerSaveGallery" onclick="executeGallerySave()" class="w-full py-3.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl">
+                <i class="fa-solid fa-download text-sm"></i>
+                <span id="btnSaveText">บันทึก 1 รูปลงเครื่อง</span>
+            </button>
+
+            <div class="text-center pt-1">
+                <button onclick="closeModal('modalSaveToGallery')" class="text-xs text-slate-400 hover:text-slate-600 font-medium">
+                    หยุดดาวน์โหลด
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- Share & QR Code Modal -->
     <div id="modalShare" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white text-slate-800 w-full max-w-2xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+        <div class="bg-white text-slate-800 w-full max-w-xl rounded-3xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onclick="closeModal('modalShare')" class="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1">
                 <i class="fa-solid fa-xmark text-xl"></i>
             </button>
 
-            <div class="mb-6">
-                <h3 class="text-xl font-bold text-slate-900">QR Code สำหรับเข้าดูแกลเลอรี</h3>
-                <p class="text-xs text-slate-500 mt-1">เลือกปลายทาง แล้วดาวน์โหลด QR Code หรือคัดลอกลิงก์ไปแชร์ได้เลย</p>
+            <div class="mb-4">
+                <h3 class="text-lg font-bold text-slate-900">QR Code แชร์แกลเลอรีให้ลูกค้า</h3>
+                <p class="text-xs text-slate-500">สแกนหรือส่งลิงก์เพื่อให้ลูกค้าเข้าดูอัลบั้มนี้</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                <div class="space-y-4">
-                    <p class="text-xs font-bold text-slate-600 uppercase tracking-wider">ปลายทางของ QR</p>
-                    <label class="flex items-center justify-between p-3.5 rounded-2xl border-2 border-emerald-500 bg-emerald-50/40 cursor-pointer transition">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                                <i class="fa-regular fa-images text-lg"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs font-bold text-slate-800">อัลบั้มรวม</p>
-                                <p class="text-[11px] text-slate-500">เปิดดูรูปทั้งหมดของงาน</p>
-                            </div>
-                        </div>
-                        <i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>
-                    </label>
+            <div class="flex flex-col items-center justify-center bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-4">
+                <div class="bg-white p-4 rounded-2xl shadow-md border border-slate-200 flex items-center justify-center">
+                    <div id="qrcodeCanvas"></div>
                 </div>
-
-                <div class="flex flex-col items-center justify-center bg-slate-50/80 p-5 rounded-2xl border border-slate-100 space-y-4">
-                    <div class="bg-white p-4 rounded-2xl shadow-md border border-slate-200/80 flex items-center justify-center relative">
-                        <div id="qrcodeCanvas"></div>
-                    </div>
-                    <div class="w-full space-y-3">
-                        <button onclick="downloadQRCodeImage()" class="w-full py-2 px-4 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 shadow-md">
-                            <i class="fa-solid fa-download"></i> ดาวน์โหลด QR Code
+                <div class="w-full space-y-2">
+                    <button onclick="downloadQRCodeImage()" class="w-full py-2.5 px-4 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 shadow">
+                        <i class="fa-solid fa-download"></i> ดาวน์โหลด QR Code
+                    </button>
+                    <div class="flex items-center bg-white border border-slate-200 rounded-xl p-1.5 pl-3 shadow-sm">
+                        <span id="shareShortUrlText" class="text-xs text-sky-600 font-medium truncate flex-1"></span>
+                        <button onclick="copyShareUrl()" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+                            <i class="fa-regular fa-copy"></i>
                         </button>
-                        <div class="flex items-center bg-white border border-slate-200 rounded-xl p-1.5 pl-3 shadow-sm">
-                            <span id="shareShortUrlText" class="text-xs text-sky-600 font-medium truncate flex-1"></span>
-                            <button onclick="copyShareUrl()" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
-                                <i class="fa-regular fa-copy"></i>
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-end">
-                <button onclick="closeModal('modalShare')" class="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-xl">ปิด</button>
+            <div class="mt-4 border-t border-slate-100 pt-3 flex justify-end">
+                <button onclick="closeModal('modalShare')" class="px-5 py-2 bg-slate-100 text-slate-700 font-medium text-xs rounded-xl">ปิด</button>
             </div>
         </div>
     </div>
+
 
     <!-- Lightbox Modal -->
     <div id="modalLightbox" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4 backdrop-blur-md">
@@ -364,7 +426,7 @@
         </div>
     </div>
 
-    <!-- Toast -->
+    <!-- Toast Notification -->
     <div id="toast" class="fixed top-14 left-1/2 -translate-x-1/2 z-50 hidden transition-all duration-300">
         <div class="bg-navy-800 text-white border border-slate-600 px-4 py-2.5 rounded-full shadow-2xl text-xs flex items-center gap-2">
             <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
@@ -372,19 +434,20 @@
         </div>
     </div>
 
-    <!-- App Logic JavaScript -->
+
+    <!-- ================= APP LOGIC JAVASCRIPT ================= -->
     <script>
-        // WEB APP URL จากผู้ใช้
         let googleScriptUrl = "https://script.google.com/macros/s/AKfycbyPcvEwQQnf5ordn4kXkfVmBAirnjqGuafo-Wj7oUnSVKw_ciU3dJ4FluJaQMGtaHuQ/exec";
         let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
 
-        let currentMode = 'customer';
+        let currentMode = 'admin'; // DEFAULT HOME IS ADMIN
         let currentAlbumId = '';
         let albums = [];
         let photos = [];
         let isSelectMode = false;
         let selectedPhotoIds = new Set();
         let currentLightboxPhotoId = null;
+        let photosToSaveToGallery = [];
 
         const SAMPLE_PHOTOS = [
             'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
@@ -397,15 +460,21 @@
             const albumParam = urlParams.get('album');
             
             loadStorageData();
-            
+            checkAndCleanExpiredAlbums();
+
+            // If Customer opens via shared link -> Switch directly to Customer Mode
             if (albumParam) {
                 const found = albums.find(a => a.id === albumParam);
                 if (found) {
                     currentAlbumId = found.id;
                     loadPhotosForCurrentAlbum();
+                    switchMode('customer');
+                    return;
                 }
             }
-            switchMode('customer');
+
+            // Default entry -> Go to Admin Dashboard
+            switchMode('admin');
         };
 
         function loadStorageData() {
@@ -421,10 +490,12 @@
             if (savedAlbums) {
                 albums = JSON.parse(savedAlbums);
             } else {
+                // Seed Default Album
                 const defaultAlbum = {
                     id: '037STUDIO-22-10-69-14-00',
                     title: '037STUDIO-22-10-69-14-00',
                     sub: 'ถ่ายสตูดิโอประจำวันที่ 22 ต.ค. 2569',
+                    expireDays: 7,
                     createdAt: new Date().toISOString()
                 };
                 albums = [defaultAlbum];
@@ -434,7 +505,7 @@
                     id: 'photo_' + Date.now() + '_' + idx,
                     albumId: defaultAlbum.id,
                     url: url,
-                    name: `STUDIO_IMG_${idx + 1}.jpg`,
+                    name: `037STUDIO_22-10-69_${idx + 1}.jpg`,
                     downloaded: false
                 }));
                 localStorage.setItem(`sikram_photos_${defaultAlbum.id}`, JSON.stringify(defaultPhotos));
@@ -444,6 +515,26 @@
                 currentAlbumId = albums[0].id;
             }
             loadPhotosForCurrentAlbum();
+        }
+
+        // Auto Expiration Cleaner
+        function checkAndCleanExpiredAlbums() {
+            const now = new Date();
+            let updated = false;
+
+            albums.forEach(album => {
+                if (album.expireDays && album.expireDays > 0) {
+                    const createdDate = new Date(album.createdAt);
+                    const expireDate = new Date(createdDate.getTime() + album.expireDays * 24 * 60 * 60 * 1000);
+
+                    if (now > expireDate) {
+                        album.isExpired = true;
+                        updated = true;
+                    }
+                }
+            });
+
+            if (updated) saveAlbums();
         }
 
         function loadPhotosForCurrentAlbum() {
@@ -466,12 +557,11 @@
             parentDriveFolderId = document.getElementById('inputDriveFolderId').value.trim();
             localStorage.setItem('sikram_script_url', googleScriptUrl);
             localStorage.setItem('sikram_drive_folder', parentDriveFolderId);
-            showToast('บันทึกการตั้งค่า Google Drive สำเร็จ');
+            showToast('บันทึกการตั้งค่าระบบจัดเก็บเรียบร้อย');
         }
 
         function toggleSettingsPanel() {
-            const panel = document.getElementById('settingsPanel');
-            panel.classList.toggle('hidden');
+            document.getElementById('settingsPanel').classList.toggle('hidden');
         }
 
         function switchMode(mode) {
@@ -487,19 +577,105 @@
                 customerView.classList.remove('hidden');
                 adminView.classList.add('hidden');
                 bottomNav.classList.remove('hidden');
+
                 btnCustomer.className = "px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-navy-600 text-white shadow-sm";
                 btnAdmin.className = "px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:text-white transition-all duration-200";
+                
                 renderCustomerGallery();
             } else {
                 customerView.classList.add('hidden');
                 adminView.classList.remove('hidden');
                 bottomNav.classList.add('hidden');
+
                 btnAdmin.className = "px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-navy-600 text-white shadow-sm";
                 btnCustomer.className = "px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:text-white transition-all duration-200";
-                renderAdminPanel();
+
+                renderAdminDashboard();
             }
         }
 
+        function goToAdminDashboard() {
+            closeSingleAlbumAdmin();
+            switchMode('admin');
+        }
+
+        // ================= ADMIN DASHBOARD & ALBUM CARDS =================
+        function renderAdminDashboard() {
+            const grid = document.getElementById('adminAlbumGrid');
+            document.getElementById('totalAlbumCount').innerText = albums.length;
+            grid.innerHTML = '';
+
+            albums.forEach(album => {
+                const albumPhotos = JSON.parse(localStorage.getItem(`sikram_photos_${album.id}`)) || [];
+                const coverPhoto = albumPhotos.length > 0 ? albumPhotos[0].url : 'https://placehold.co/400x300/133050/ffffff?text=Studio+Album';
+
+                // Days calculation
+                const created = new Date(album.createdAt);
+                const expireDays = album.expireDays || 7;
+                const daysLeft = Math.max(0, expireDays - Math.floor((new Date() - created) / (1000 * 60 * 60 * 24)));
+
+                const card = document.createElement('div');
+                card.className = "bg-navy-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl hover:border-sky-500/50 transition cursor-pointer group flex flex-col justify-between";
+                card.innerHTML = `
+                    <div onclick="openSingleAlbumAdmin('${album.id}')">
+                        <div class="relative h-40 overflow-hidden bg-navy-950">
+                            <img src="${coverPhoto}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                            <div class="absolute inset-0 bg-gradient-to-t from-navy-950 via-transparent to-transparent"></div>
+                            
+                            <!-- Expiration Tag -->
+                            <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] text-amber-400 border border-slate-700 flex items-center gap-1 font-semibold">
+                                <i class="fa-regular fa-clock"></i> ${expireDays === 0 ? 'ไม่มีวันหมดอายุ' : `ลบใน ${daysLeft} วัน`}
+                            </div>
+
+                            <!-- Photo Count Badge -->
+                            <div class="absolute bottom-3 right-3 bg-sky-600 text-white px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow">
+                                ${albumPhotos.length} รูป
+                            </div>
+                        </div>
+
+                        <div class="p-4 space-y-1">
+                            <h4 class="text-sm font-bold text-white uppercase font-mono truncate">${album.title}</h4>
+                            <p class="text-xs text-slate-400 truncate">${album.sub || 'ไม่มีคำอธิบาย'}</p>
+                        </div>
+                    </div>
+
+                    <div class="px-4 pb-4 pt-1 flex items-center justify-between border-t border-slate-800/80 mt-1">
+                        <button onclick="openSingleAlbumAdmin('${album.id}')" class="text-xs text-sky-400 hover:text-sky-300 font-medium flex items-center gap-1">
+                            <i class="fa-solid fa-folder-open"></i> เปิดอัลบั้ม
+                        </button>
+                        <button onclick="openShareModalForId('${album.id}', event)" class="px-3 py-1 bg-emerald-600/90 hover:bg-emerald-600 text-white rounded-lg text-xs flex items-center gap-1 shadow">
+                            <i class="fa-solid fa-share-nodes text-[11px]"></i> แชร์ลูกค้า
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function openSingleAlbumAdmin(albumId) {
+            currentAlbumId = albumId;
+            loadPhotosForCurrentAlbum();
+            
+            const album = albums.find(a => a.id === albumId);
+            document.getElementById('adminActiveTitle').innerText = album.title;
+            document.getElementById('adminActiveSub').innerText = album.sub || 'รายละเอียดอัลบั้ม';
+            document.getElementById('adminActiveExpire').innerText = album.expireDays ? `${album.expireDays} วัน` : 'ไม่กำหนดวันลบ';
+            document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
+
+            document.getElementById('adminAlbumGridSection').classList.add('hidden');
+            document.getElementById('adminSingleAlbumSection').classList.remove('hidden');
+
+            renderAdminPhotoList();
+        }
+
+        function closeSingleAlbumAdmin() {
+            document.getElementById('adminAlbumGridSection').classList.remove('hidden');
+            document.getElementById('adminSingleAlbumSection').classList.add('hidden');
+            renderAdminDashboard();
+        }
+
+
+        // ================= CUSTOMER GALLERY RENDER =================
         function renderCustomerGallery() {
             const grid = document.getElementById('photosGrid');
             const emptyState = document.getElementById('emptyCustomerState');
@@ -551,6 +727,97 @@
             grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
         }
 
+
+        // ================= SAVE DIRECT TO PHONE GALLERY LOGIC =================
+        function downloadSinglePhoto(photoId, event) {
+            if (event) event.stopPropagation();
+            const photo = photos.find(p => p.id === photoId);
+            if (!photo) return;
+
+            photosToSaveToGallery = [photo];
+            openSaveGalleryModal();
+        }
+
+        function downloadSelectedPhotos() {
+            if (selectedPhotoIds.size === 0) return;
+            photosToSaveToGallery = photos.filter(p => selectedPhotoIds.has(p.id));
+            openSaveGalleryModal();
+        }
+
+        function downloadAllPhotos() {
+            if (photos.length === 0) return;
+            photosToSaveToGallery = [...photos];
+            openSaveGalleryModal();
+        }
+
+        function openSaveGalleryModal() {
+            const count = photosToSaveToGallery.length;
+            document.getElementById('saveModalPhotoCount').innerText = `${count} รูป`;
+            document.getElementById('btnSaveText').innerText = `บันทึก ${count} รูปลงเครื่อง`;
+            openModal('modalSaveToGallery');
+        }
+
+        // Trigger Direct Phone Gallery Save via Web Share API
+        async function executeGallerySave() {
+            if (photosToSaveToGallery.length === 0) return;
+
+            showToast('กำลังเตรียมรูปภาพบันทึกลงแกลเลอรี...');
+
+            try {
+                // If Web Share API with Files is supported (iOS Safari / Mobile Chrome)
+                if (navigator.canShare) {
+                    const filesArray = [];
+
+                    for (let i = 0; i < photosToSaveToGallery.length; i++) {
+                        const p = photosToSaveToGallery[i];
+                        const blob = await fetch(p.url).then(r => r.blob());
+                        const file = new File([blob], p.name || `Studio_Photo_${i+1}.jpg`, { type: blob.type || 'image/jpeg' });
+                        filesArray.push(file);
+                    }
+
+                    if (navigator.canShare({ files: filesArray })) {
+                        await navigator.share({
+                            files: filesArray,
+                            title: 'บันทึกรูปภาพสตูดิโอ',
+                            text: 'กดเลือกลับ/บันทึกรูปภาพเพื่อเซฟลงแกลเลอรี'
+                        });
+
+                        // Mark downloaded status
+                        photosToSaveToGallery.forEach(p => p.downloaded = true);
+                        saveCurrentPhotos();
+                        renderCustomerGallery();
+                        closeModal('modalSaveToGallery');
+                        showToast('บันทึกลงแกลเลอรีเรียบร้อยแล้ว!');
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.log('Native share canceled or unhandled, triggering direct download fallback');
+            }
+
+            // Fallback for desktop or non-supported browsers
+            photosToSaveToGallery.forEach((photo, idx) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = photo.downloadUrl || photo.url;
+                    a.download = photo.name || `studio_photo_${idx+1}.jpg`;
+                    a.target = '_blank';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+
+                    photo.downloaded = true;
+                }, idx * 300);
+            });
+
+            saveCurrentPhotos();
+            renderCustomerGallery();
+            closeModal('modalSaveToGallery');
+            showToast('ดาวน์โหลดรูปภาพลงเครื่องเรียบร้อย!');
+        }
+
+
+        // ================= SELECTION MODE & LIGHTBOX =================
         function toggleSelectMode() {
             isSelectMode = !isSelectMode;
             const btn = document.getElementById('btnSelectToggle');
@@ -593,50 +860,6 @@
             document.getElementById('selectedCount').innerText = selectedPhotoIds.size;
         }
 
-        function downloadSinglePhoto(photoId, event) {
-            if (event) event.stopPropagation();
-            const photo = photos.find(p => p.id === photoId);
-            if (!photo) return;
-
-            const downloadUrl = photo.downloadUrl || photo.url;
-            const a = document.createElement('a');
-            a.href = downloadUrl;
-            a.target = '_blank';
-            a.download = photo.name || 'studio_photo.jpg';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-
-            photo.downloaded = true;
-            saveCurrentPhotos();
-            renderCustomerGallery();
-            showToast(`ดาวน์โหลด ${photo.name} สำเร็จ!`);
-        }
-
-        function downloadSelectedPhotos() {
-            if (selectedPhotoIds.size === 0) return;
-            let count = 0;
-            selectedPhotoIds.forEach(id => {
-                const photo = photos.find(p => p.id === id);
-                if (photo) {
-                    photo.downloaded = true;
-                    count++;
-                }
-            });
-            saveCurrentPhotos();
-            renderCustomerGallery();
-            showToast(`ดาวน์โหลดจำนวน ${count} รูปเรียบร้อย!`);
-            toggleSelectMode();
-        }
-
-        function downloadAllPhotos() {
-            if (photos.length === 0) return;
-            photos.forEach(p => p.downloaded = true);
-            saveCurrentPhotos();
-            renderCustomerGallery();
-            showToast(`ดาวน์โหลดรูปภาพทั้งหมด (${photos.length} รูป) เรียบร้อย!`);
-        }
-
         function openLightbox(photoId) {
             currentLightboxPhotoId = photoId;
             const photo = photos.find(p => p.id === photoId);
@@ -652,32 +875,8 @@
             if (currentLightboxPhotoId) downloadSinglePhoto(currentLightboxPhotoId);
         }
 
-        function renderAdminPanel() {
-            populateAdminAlbumDropdown();
-            renderAdminPhotoList();
-        }
-
-        function populateAdminAlbumDropdown() {
-            const select = document.getElementById('adminAlbumSelect');
-            select.innerHTML = '';
-            albums.forEach(alb => {
-                const opt = document.createElement('option');
-                opt.value = alb.id;
-                opt.innerText = `${alb.title} (${alb.sub || 'ไม่มีคำอธิบาย'})`;
-                if (alb.id === currentAlbumId) opt.selected = true;
-                select.appendChild(opt);
-            });
-        }
-
-        function switchAdminAlbum(albumId) {
-            currentAlbumId = albumId;
-            loadPhotosForCurrentAlbum();
-            renderAdminPanel();
-        }
-
         function renderAdminPhotoList() {
             const grid = document.getElementById('adminPhotoGrid');
-            document.getElementById('adminPhotoCount').innerText = photos.length;
             grid.innerHTML = '';
 
             photos.forEach(photo => {
@@ -709,11 +908,8 @@
             const progressPercent = document.getElementById('uploadProgressPercent');
             const countText = document.getElementById('uploadCountText');
             const statusText = document.getElementById('uploadProgressStatus');
-            const errorText = document.getElementById('uploadErrorText');
 
             progressContainer.classList.remove('hidden');
-            errorText.innerText = '';
-            
             const filePayloads = [];
             const total = files.length;
 
@@ -729,12 +925,10 @@
                 const readPercent = Math.round(((i + 1) / total) * 40);
                 progressBar.style.width = readPercent + '%';
                 progressPercent.innerText = readPercent + '%';
-                statusText.innerText = 'กำลังประมวลผลไฟล์...';
             }
 
-            statusText.innerText = 'กำลังส่งไปสร้างโฟลเดอร์และบันทึกลง Google Drive...';
-            progressBar.style.width = '60%';
-            progressPercent.innerText = '60%';
+            statusText.innerText = 'กำลังส่งไฟล์และบันทึกลง Google Drive...';
+            progressBar.style.width = '70%';
 
             try {
                 const response = await fetch(googleScriptUrl, {
@@ -752,7 +946,6 @@
                 if (result.status === 'success') {
                     progressBar.style.width = '100%';
                     progressPercent.innerText = '100%';
-                    statusText.innerText = 'อัปโหลดลง Google Drive สำเร็จ!';
 
                     result.files.forEach(f => {
                         photos.push({
@@ -768,16 +961,14 @@
                     saveCurrentPhotos();
                     setTimeout(() => {
                         progressContainer.classList.add('hidden');
-                        progressBar.style.width = '0%';
                         renderAdminPhotoList();
-                        showToast(`อัปโหลด ${result.files.length} รูปเข้า Google Drive สำเร็จ!`);
-                    }, 1000);
+                        showToast(`อัปโหลดเข้า Google Drive สำเร็จ!`);
+                    }, 800);
                 } else {
-                    throw new Error(result.message || 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์');
+                    throw new Error(result.message);
                 }
 
             } catch (err) {
-                console.warn('Google Script Direct API Notice, fallback to local:', err);
                 filePayloads.forEach(f => {
                     photos.push({
                         id: 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
@@ -788,14 +979,9 @@
                     });
                 });
                 saveCurrentPhotos();
-                progressBar.style.width = '100%';
-                progressPercent.innerText = '100%';
-                statusText.innerText = 'อัปโหลดลงอัลบั้มสำเร็จ!';
-                setTimeout(() => {
-                    progressContainer.classList.add('hidden');
-                    renderAdminPhotoList();
-                    showToast(`เพิ่มรูปภาพเข้าอัลบั้มเรียบร้อยแล้ว`);
-                }, 1000);
+                progressContainer.classList.add('hidden');
+                renderAdminPhotoList();
+                showToast(`เพิ่มรูปภาพเข้าอัลบั้มเรียบร้อยแล้ว`);
             }
 
             e.target.value = '';
@@ -811,7 +997,7 @@
         }
 
         function deletePhoto(photoId) {
-            if (confirm('ต้องการลบรูปภาพนี้ออกจากอัลบั้มหรือไม่?')) {
+            if (confirm('ต้องการลบรูปภาพนี้หรือไม่?')) {
                 photos = photos.filter(p => p.id !== photoId);
                 saveCurrentPhotos();
                 renderAdminPhotoList();
@@ -828,6 +1014,7 @@
         function saveNewAlbum() {
             const title = document.getElementById('inputAlbumTitle').value.trim();
             const sub = document.getElementById('inputAlbumSub').value.trim();
+            const expireDays = parseInt(document.getElementById('inputAlbumExpireDays').value);
 
             if (!title) {
                 alert('กรุณากรอกชื่ออัลบั้ม');
@@ -837,7 +1024,8 @@
             const newAlbum = {
                 id: title.replace(/\s+/g, '-'),
                 title: title,
-                sub: sub || 'อัลบั้มสตูดิโอถ่ายภาพ',
+                sub: sub || 'อัลบั้มถ่ายภาพสตูดิโอ',
+                expireDays: expireDays,
                 createdAt: new Date().toISOString()
             };
 
@@ -849,29 +1037,29 @@
             saveCurrentPhotos();
 
             closeModal('modalCreateAlbum');
-            renderAdminPanel();
+            renderAdminDashboard();
             showToast(`สร้างอัลบั้ม "${title}" เรียบร้อยแล้ว`);
         }
 
         function deleteCurrentAlbum() {
-            if (albums.length <= 1) {
-                alert('ต้องมีอย่างน้อย 1 อัลบั้มในระบบ');
-                return;
-            }
-
-            if (confirm(`คุณแน่ใจหรือไม่ที่จะลบอัลบั้ม "${currentAlbumId}"?`)) {
+            if (confirm(`คุณแน่ใจหรือไม่ที่จะลบอัลบั้มนี้?`)) {
                 albums = albums.filter(a => a.id !== currentAlbumId);
                 localStorage.removeItem(`sikram_photos_${currentAlbumId}`);
                 saveAlbums();
 
-                currentAlbumId = albums[0].id;
-                loadPhotosForCurrentAlbum();
-                renderAdminPanel();
+                closeSingleAlbumAdmin();
                 showToast('ลบอัลบั้มเรียบร้อย');
             }
         }
 
-        function openShareModal() {
+        // SHARE MODALS
+        function openShareModalForId(albumId, event) {
+            if (event) event.stopPropagation();
+            currentAlbumId = albumId;
+            openShareModalCurrent();
+        }
+
+        function openShareModalCurrent() {
             const shareUrl = `${window.location.origin}${window.location.pathname}?album=${currentAlbumId}`;
             document.getElementById('shareShortUrlText').innerText = shareUrl;
 
@@ -892,9 +1080,7 @@
         function copyShareUrl() {
             const urlText = document.getElementById('shareShortUrlText').innerText;
             navigator.clipboard.writeText(urlText).then(() => {
-                showToast('คัดลอกลิงก์เรียบร้อยแล้ว!');
-            }).catch(() => {
-                showToast('คัดลอกลิงก์สำเร็จ');
+                showToast('คัดลอกลิงก์แชร์เรียบร้อยแล้ว!');
             });
         }
 
