@@ -482,7 +482,7 @@
 
     <!-- ================= APP LOGIC JAVASCRIPT ================= -->
     <script>
-        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4JhT90AOi177_3v0Czc4H56W5zGZiDJ5xLF2TJ9uS-v6uakDa8zRA0CCAnXBoG28/exec";
+        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzXuRJrYgNzalnUAxfko12ez-koQBUaKHoydleLoIiKVaDklNC-cXO6nPbc7ZdBg0xY/exec";
         let googleScriptUrl = DEFAULT_SCRIPT_URL;
         let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
 
@@ -574,7 +574,7 @@
             window.open(`https://drive.google.com/drive/search?q=${searchQuery}`, '_blank');
         }
 
-        // ================= TIMER & AUTO DELETE SYSTEM (ปรับแก้ไขปัญหานับเวลาค้าง) =================
+        // ================= TIMER & AUTO DELETE SYSTEM =================
         function startGlobalTimer() {
             if (countdownTimerInterval) clearInterval(countdownTimerInterval);
             countdownTimerInterval = setInterval(updateAllCountdowns, 1000);
@@ -584,14 +584,12 @@
         // ฟังก์ชันช่วยสกัด Date object จากชื่ออัลบั้ม (เช่น 037Studio_23.10.69_13:00)
         function parseDateFromTitle(title) {
             if (!title) return null;
-            // รูปแบบ regex จับกลุ่ม: วัน.เดือน.ปี2หลัก_ชั่วโมง:นาที
             const match = title.match(/(\d{2})\.(\d{2})\.(\d{2})(?:_(\d{2}):(\d{2}))?/);
             if (match) {
                 const day = parseInt(match[1], 10);
-                const month = parseInt(match[2], 10) - 1; // ใน JS เดือนเริ่มที่ 0
+                const month = parseInt(match[2], 10) - 1;
                 let year = parseInt(match[3], 10);
                 
-                // แปลงพ.ศ. 2 หลักเป็น ค.ศ. (เช่น 69 -> 2569 -> 2026)
                 if (year > 50) {
                     year = (2500 + year) - 543;
                 } else {
@@ -615,18 +613,15 @@
             let expireDays = album.expireDays !== undefined ? parseFloat(album.expireDays) : 7;
             let createdDate = null;
 
-            // 1. ลองใช้ createdAt ของอัลบั้มก่อน
             if (album.createdAt) {
                 const temp = new Date(album.createdAt);
                 if (!isNaN(temp.getTime())) createdDate = temp;
             }
 
-            // 2. หากไม่มี createdAt ให้ลองแกะวันที่และเวลาจากชื่ออัลบั้ม
             if (!createdDate && album.title) {
                 createdDate = parseDateFromTitle(album.title);
             }
 
-            // 3. หากยังไม่มี ใช้วันเวลาปัจจุบันแทน
             if (!createdDate) {
                 createdDate = new Date();
             }
@@ -999,7 +994,6 @@
             const emptyState = document.getElementById('emptyCustomerState');
             const loadingBanner = document.getElementById('customerLoadingBanner');
             
-            // ดึงข้อมูลซิงค์อัลบั้มจากเซิร์ฟเวอร์เพื่อให้ได้ข้อมูลวันที่สร้างโฟลเดอร์จริง
             if (albums.length === 0) {
                 await fetchAlbumsFromDrive();
             }
@@ -1559,6 +1553,8 @@
 
             let folderId = null;
             let folderUrl = null;
+            let createdAt = new Date().toISOString();
+
             try {
                 const res = await fetch(googleScriptUrl, {
                     method: 'POST',
@@ -1566,6 +1562,7 @@
                     body: JSON.stringify({
                         action: 'createFolder',
                         albumTitle: title,
+                        expireDays: expireDays, // ส่งระยะเวลาลบอัตโนมัติไปบันทึกลง Google Sheet
                         parentFolderId: parentDriveFolderId
                     })
                 });
@@ -1574,10 +1571,11 @@
                 if (data.status === 'success') {
                     if (data.folderId) folderId = data.folderId;
                     if (data.folderUrl) folderUrl = data.folderUrl;
-                    showToast(`สร้างอัลบั้ม "${title}" บน Google Drive สำเร็จ!`);
+                    if (data.createdAt) createdAt = data.createdAt;
+                    showToast(`สร้างอัลบั้ม "${title}" และบันทึกลง Google Sheet เรียบร้อย!`);
                 }
             } catch (err) {
-                console.log('Google Drive folder creation error');
+                console.log('Google Drive folder creation error', err);
             }
 
             const newAlbumObj = {
@@ -1587,7 +1585,7 @@
                 expireDays: expireDays,
                 folderId: folderId,
                 folderUrl: folderUrl,
-                createdAt: new Date().toISOString()
+                createdAt: createdAt
             };
 
             albums.unshift(newAlbumObj);
