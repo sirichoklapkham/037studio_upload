@@ -131,9 +131,7 @@
                     <i class="fa-solid fa-boxes-stacked text-sky-400"></i>
                     <span>รายการอัลบั้มทั้งหมด (<span id="totalAlbumCount">0</span> อัลบั้ม)</span>
                 </h3>
-                <div id="adminAlbumGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    <!-- Album Cards Injected Here -->
-                </div>
+                <div id="adminAlbumGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
             </div>
 
             <!-- SINGLE ALBUM MANAGEMENT VIEW -->
@@ -744,12 +742,13 @@
 
             photos.forEach((photo) => {
                 const card = document.createElement('div');
+                card.id = `card_${photo.id}`;
                 card.className = "relative group bg-navy-900 rounded-2xl overflow-hidden border border-slate-800 shadow-lg aspect-[3/4] cursor-pointer transition transform active:scale-95";
                 const isSelected = selectedPhotoIds.has(photo.id);
 
                 card.innerHTML = `
                     <img src="${photo.url}" alt="${photo.name}" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onclick="handlePhotoClick('${photo.id}')" onerror="this.src='https://placehold.co/400x600/133050/ffffff?text=Studio+Image'">
-                    <div onclick="toggleSelectPhoto('${photo.id}', event)" class="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-sky-500 border-white text-white' : 'border-white/70 bg-black/20 text-transparent'}">
+                    <div id="check_${photo.id}" onclick="toggleSelectPhoto('${photo.id}', event)" class="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-sky-500 border-white text-white' : 'border-white/70 bg-black/20 text-transparent'}">
                         <i class="fa-solid fa-check text-xs"></i>
                     </div>
                     ${photo.downloaded ? `
@@ -828,7 +827,6 @@
 
                         photosToSaveToGallery.forEach(p => p.downloaded = true);
                         saveCurrentPhotos();
-                        renderCustomerGallery();
                         closeModal('modalSaveToGallery');
                         showToast('บันทึกลงแกลเลอรีเรียบร้อยแล้ว!');
                         return;
@@ -853,7 +851,6 @@
             });
 
             saveCurrentPhotos();
-            renderCustomerGallery();
             closeModal('modalSaveToGallery');
             showToast('ดาวน์โหลดรูปภาพลงเครื่องเรียบร้อย!');
         }
@@ -877,9 +874,16 @@
                 icon.className = "fa-regular fa-circle";
                 text.innerText = "เลือกรูปภาพ";
                 btnBatch.classList.add('hidden');
+                
+                // ล้างค่าที่เลือกและอัปเดตเฉพาะ UI วงกลมติ๊กเลือก โดยไม่ดึงข้อมูลใหม่
+                selectedPhotoIds.forEach(id => {
+                    const checkBtn = document.getElementById(`check_${id}`);
+                    if (checkBtn) {
+                        checkBtn.className = "absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all border-white/70 bg-black/20 text-transparent";
+                    }
+                });
                 selectedPhotoIds.clear();
                 updateSelectedCount();
-                renderCustomerGallery();
             }
         }
 
@@ -888,14 +892,26 @@
             else openLightbox(photoId);
         }
 
+        // ปรับแก้ toggleSelectPhoto เพื่อให้อัปเดต UI ตรงการ์ดรูปภาพทันที โดยไม่รีโหลดใหม่
         function toggleSelectPhoto(photoId, event) {
             if (event) event.stopPropagation();
-            if (selectedPhotoIds.has(photoId)) selectedPhotoIds.delete(photoId);
-            else selectedPhotoIds.add(photoId);
+
+            const checkBtn = document.getElementById(`check_${photoId}`);
+
+            if (selectedPhotoIds.has(photoId)) {
+                selectedPhotoIds.delete(photoId);
+                if (checkBtn) {
+                    checkBtn.className = "absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all border-white/70 bg-black/20 text-transparent";
+                }
+            } else {
+                selectedPhotoIds.add(photoId);
+                if (checkBtn) {
+                    checkBtn.className = "absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all bg-sky-500 border-white text-white";
+                }
+            }
 
             if (!isSelectMode && selectedPhotoIds.size > 0) toggleSelectMode();
             updateSelectedCount();
-            renderCustomerGallery();
         }
 
         function updateSelectedCount() {
@@ -983,7 +999,7 @@
                 });
             }
 
-            // 2. เริ่มส่งไฟล์แยกตามการ์ดขึ้น Google Drive
+            // 2. เริ่มส่งไฟล์แยกตามการ์ดขึ้น Google Drive ในเบื้องหลัง
             for (let entry of fileEntries) {
                 let percent = 0;
                 const interval = setInterval(() => {
