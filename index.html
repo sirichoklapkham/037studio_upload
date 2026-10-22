@@ -200,8 +200,20 @@
                 <h1 id="customerAlbumTitle" class="text-lg sm:text-2xl font-bold tracking-wider text-white uppercase font-mono"></h1>
                 <p id="customerAlbumSub" class="text-xs text-slate-400 mt-1">รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว</p>
 
+                <!-- Expire Date Notification Banner -->
+                <div class="mt-3 bg-amber-500/15 border border-amber-500/30 rounded-xl p-2.5 max-w-md mx-auto text-xs text-amber-300 flex items-center justify-center gap-2">
+                    <i class="fa-regular fa-clock text-amber-400 text-sm"></i>
+                    <span>ระบบจะทำการลบรูปภาพอัตโนมัติใน: <strong id="customerExpireText" class="text-white">กำลังคำนวณ...</strong></span>
+                </div>
+
+                <!-- Loading Indicator Banner -->
+                <div id="customerLoadingBanner" class="mt-3 bg-sky-500/20 border border-sky-500/30 rounded-xl p-2.5 max-w-md mx-auto text-xs text-sky-300 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-spinner fa-spin text-sky-400"></i>
+                    <span>กำลังดึงข้อมูลรูปภาพจาก Google Drive...</span>
+                </div>
+
                 <!-- Download Progress Indicator -->
-                <div class="mt-4 flex items-center justify-center space-x-4 text-xs text-slate-300 bg-navy-950/60 py-2 px-4 rounded-xl max-w-sm mx-auto border border-slate-800">
+                <div class="mt-3 flex items-center justify-center space-x-4 text-xs text-slate-300 bg-navy-950/60 py-2 px-4 rounded-xl max-w-sm mx-auto border border-slate-800">
                     <div>รูปทั้งหมด: <span id="totalPhotosCount" class="font-bold text-white">0</span></div>
                     <div class="w-px h-3 bg-slate-700"></div>
                     <div>ดาวน์โหลดแล้ว: <span id="downloadedPhotosCount" class="font-bold text-emerald-400">0</span></div>
@@ -422,7 +434,6 @@
 
     <!-- ================= APP LOGIC JAVASCRIPT ================= -->
     <script>
-        // กำหนด Google Apps Script Web App URL เริ่มต้นตัวใหม่ล่าสุด
         let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec";
         let googleScriptUrl = DEFAULT_SCRIPT_URL;
         let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
@@ -444,22 +455,24 @@
             loadStorageData();
             setupDragAndDrop();
 
-            // ดึงข้อมูลอัลบั้มตั้งต้นจาก Google Drive ทันทีเมื่อเปิดเว็บ
-            await fetchAlbumsFromDrive();
-
             if (albumParam) {
+                // เมื่อลูกค้าเปิดผ่านลิงก์ของทางร้าน -> แสดงอัลบั้มของลูกค้าโดยตรงทันที
                 isCustomerSharedLink = true;
-                currentAlbumId = albumParam;
+                currentAlbumId = decodeURIComponent(albumParam);
                 
-                // ดึงรูปถ่ายเฉพาะของอัลบั้มนี้จาก Google Drive มาแสดงผล
-                await fetchPhotosFromDrive(albumParam);
                 switchMode('customer');
                 
+                // ซ่อนสวิตช์แอดมิน เพื่อป้องกันไม่ให้ลูกค้าสลับไปหน้าแอดมิน
                 const viewSwitcher = document.getElementById('viewSwitcherContainer');
                 if (viewSwitcher) viewSwitcher.classList.add('hidden');
+                
+                // ดึงรูปสดจาก Google Drive เข้าอัลบั้มลูกค้าโดยตรง
+                await renderCustomerGallery();
                 return;
             }
 
+            // ถ้าไม่มีพารามิเตอร์อัลบั้ม -> เข้าหน้าแอดมินตามปกติ
+            await fetchAlbumsFromDrive();
             switchMode('admin');
         };
 
@@ -592,7 +605,6 @@
                     btnCustomer.className = "px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-navy-600 text-white shadow-sm";
                     btnAdmin.className = "px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:text-white transition-all duration-200";
                 }
-                renderCustomerGallery();
             } else {
                 customerView.classList.add('hidden');
                 adminView.classList.remove('hidden');
@@ -665,7 +677,6 @@
             document.getElementById('adminActiveTitle').innerText = album.title;
             document.getElementById('adminActiveSub').innerText = album.sub || 'รายละเอียดอัลบั้ม';
             
-            // โหลดและดึงรูปถ่ายสดๆ จาก Google Drive
             showToast('กำลังโหลดรูปภาพจาก Google Drive...');
             await fetchPhotosFromDrive(album.title || albumId);
 
@@ -687,6 +698,7 @@
         async function renderCustomerGallery() {
             const grid = document.getElementById('photosGrid');
             const emptyState = document.getElementById('emptyCustomerState');
+            const loadingBanner = document.getElementById('customerLoadingBanner');
             
             const currentAlbum = albums.find(a => a.id === currentAlbumId);
             const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
@@ -694,8 +706,31 @@
             document.getElementById('customerAlbumTitle').innerText = albumTitle;
             document.getElementById('customerAlbumSub').innerText = (currentAlbum && currentAlbum.sub) ? currentAlbum.sub : 'รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว';
 
+            // คำนวณวันและเวลาหมดอายุ (7 วันนับจากวันที่สร้าง)
+            let expireDateStr = "7 วันนับจากวันถ่ายภาพ";
+            if (currentAlbum && currentAlbum.createdAt) {
+                const created = new Date(currentAlbum.createdAt);
+                const expireDate = new Date(created.getTime() + 7 * 24 * 60 * 60 * 1000);
+                expireDateStr = `${expireDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} เวลา ${expireDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`;
+            } else {
+                const now = new Date();
+                const exp = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                expireDateStr = `${exp.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} เวลา ${exp.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`;
+            }
+            document.getElementById('customerExpireText').innerText = expireDateStr;
+
+            // แสดงสถานะกำลังโหลด
+            loadingBanner.classList.remove('hidden');
+            grid.innerHTML = `
+                <div class="col-span-full py-12 text-center text-slate-400 text-xs space-y-2">
+                    <i class="fa-solid fa-spinner fa-spin text-2xl text-sky-400"></i>
+                    <p>กำลังดึงข้อมูลรูปภาพจาก Google Drive กรุณารอสักครู่...</p>
+                </div>
+            `;
+
             // ดึงรูปถ่ายเฉพาะอัลบั้มนี้สดๆ จาก Google Drive
             await fetchPhotosFromDrive(albumTitle);
+            loadingBanner.classList.add('hidden');
 
             document.getElementById('totalPhotosCount').innerText = photos.length;
             document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
@@ -910,18 +945,21 @@
             e.target.value = '';
         }
 
-        // ================= อัปโหลดรูปทีละไฟล์ พร้อมสร้างการ์ดพรีวิว + เปอร์เซ็นต์ทันที =================
+        // ================= อัปโหลดและแสดงรูปภาพพรีวิวพร้อมกันทั้งชุดทันที =================
         async function uploadFilesProcess(files) {
             const grid = document.getElementById('adminPhotoGrid');
             const currentAlbum = albums.find(a => a.id === currentAlbumId);
             const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
 
-            for (let i = 0; i < files.length; i++) {
+            const totalFiles = files.length;
+            const fileEntries = [];
+
+            // 1. สร้างการ์ดภาพพรีวิวรอไว้ล่วงหน้าทันทีพร้อมกันทุกรูปที่ดึงมาอัปโหลด
+            for (let i = 0; i < totalFiles; i++) {
                 const file = files[i];
                 const base64 = await readFileAsDataURL(file);
                 const tempId = 'temp_' + Date.now() + '_' + i;
 
-                // 1. แทรกการ์ดภาพพรีวิวพร้อมสปินเนอร์และ % บนตัวรูปทันที
                 const card = document.createElement('div');
                 card.id = tempId;
                 card.className = "relative bg-navy-950 rounded-xl overflow-hidden border border-slate-800 aspect-square";
@@ -937,16 +975,24 @@
                 `;
                 grid.prepend(card);
 
-                // จำลองหลอดเปอร์เซ็นต์ขณะประมวลผลส่งไฟล์
+                fileEntries.push({
+                    file: file,
+                    base64: base64,
+                    tempId: tempId,
+                    card: card
+                });
+            }
+
+            // 2. เริ่มส่งไฟล์แยกตามการ์ดขึ้น Google Drive
+            for (let entry of fileEntries) {
                 let percent = 0;
                 const interval = setInterval(() => {
                     percent += 15;
                     if (percent > 85) clearInterval(interval);
-                    const el = document.getElementById(`percent_${tempId}`);
+                    const el = document.getElementById(`percent_${entry.tempId}`);
                     if (el) el.innerText = `${percent}%`;
                 }, 120);
 
-                // 2. ส่งไฟล์เข้า Google Drive
                 try {
                     const response = await fetch(googleScriptUrl, {
                         method: 'POST',
@@ -954,7 +1000,7 @@
                         body: JSON.stringify({
                             albumTitle: albumTitle,
                             parentFolderId: parentDriveFolderId,
-                            file: { name: file.name, type: file.type, base64: base64 }
+                            file: { name: entry.file.name, type: entry.file.type, base64: entry.base64 }
                         })
                     });
 
@@ -962,12 +1008,11 @@
                     clearInterval(interval);
 
                     if (result.status === 'success' && result.file) {
-                        const percentEl = document.getElementById(`percent_${tempId}`);
+                        const percentEl = document.getElementById(`percent_${entry.tempId}`);
                         if (percentEl) percentEl.innerText = '100%';
 
-                        // อัปเดตการ์ดพรีวิวเป็นการ์ดรูปถ่ายสมบูรณ์
                         setTimeout(() => {
-                            card.innerHTML = `
+                            entry.card.innerHTML = `
                                 <img src="${result.file.url}" class="w-full h-full object-cover">
                                 <button onclick="deletePhoto('${result.file.id}')" class="absolute top-2 right-2 w-7 h-7 bg-rose-600/90 hover:bg-rose-500 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition">
                                     <i class="fa-solid fa-trash"></i>
@@ -987,30 +1032,29 @@
 
                 } catch (err) {
                     clearInterval(interval);
-                    // Fallback กรณีเซิร์ฟเวอร์ขัดข้อง ให้แสดงภาพออฟไลน์ไว้ชั่วคราว
                     const fallbackObj = {
                         id: 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                         albumId: currentAlbumId,
-                        url: base64,
-                        name: file.name,
+                        url: entry.base64,
+                        name: entry.file.name,
                         downloaded: false
                     };
                     photos.push(fallbackObj);
                     saveCurrentPhotos();
 
-                    card.innerHTML = `
-                        <img src="${base64}" class="w-full h-full object-cover">
+                    entry.card.innerHTML = `
+                        <img src="${entry.base64}" class="w-full h-full object-cover">
                         <button onclick="deletePhoto('${fallbackObj.id}')" class="absolute top-2 right-2 w-7 h-7 bg-rose-600/90 hover:bg-rose-500 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                         <div class="absolute bottom-0 inset-x-0 bg-black/70 p-1 text-[10px] text-slate-300 truncate text-center">
-                            ${file.name}
+                            ${entry.file.name}
                         </div>
                     `;
                     document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
                 }
             }
-            showToast('อัปโหลดและประมวลผลรูปภาพเรียบร้อยแล้ว');
+            showToast('อัปโหลดรูปภาพเข้าอัลบั้มเรียบร้อยแล้ว');
         }
 
         function readFileAsDataURL(file) {
@@ -1038,7 +1082,6 @@
             openModal('modalCreateAlbum');
         }
 
-        // บันทึกสร้างอัลบั้ม -> สร้างโฟลเดอร์บน Google Drive และซิงค์รายการอัลบั้ม
         async function saveNewAlbum() {
             const title = document.getElementById('inputAlbumTitle').value.trim();
             const sub = document.getElementById('inputAlbumSub').value.trim();
@@ -1071,7 +1114,6 @@
                 console.log('Google Drive folder creation error');
             }
 
-            // ดึงข้อมูลรายการอัลบั้มจาก Google Drive ใหม่เพื่ออัปเดตข้ามเครื่อง
             await fetchAlbumsFromDrive();
         }
 
@@ -1097,7 +1139,6 @@
             const album = albums.find(a => a.id === currentAlbumId);
             const albumTitle = album ? album.title : currentAlbumId;
             
-            // ใช้ชื่ออัลบั้มจริงๆ ในพารามิเตอร์ลิงก์แชร์
             const shareUrl = `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(albumTitle)}`;
             document.getElementById('shareShortUrlText').innerText = shareUrl;
 
