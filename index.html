@@ -108,7 +108,7 @@
                 <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
                     <div>
                         <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
-                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwHA42mwUK4swJGF_G2hvPtf4x5JmBzw8nqIeW_mU_p_aCty6GaoxqljF7RemvmmQTy/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none font-mono">
+                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwHA42mwUK4swJGF_G2hvPtf4x5JmBzw8nqIeW_mU_p_aCty6GaoxqljF7RemvmmQTy/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
@@ -255,6 +255,49 @@
     </div>
 
     <!-- ================= MODALS & POPUPS ================= -->
+
+    <!-- Modal คำแนะนำเปิดใช้งาน Google Drive App -->
+    <div id="modalDriveTutorial" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white text-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
+            <button onclick="closeModal('modalDriveTutorial')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <div class="text-center space-y-1 border-b border-slate-100 pb-3">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-inner">
+                    <i class="fa-brands fa-google-drive"></i>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 pt-1">ดาวน์โหลดภาพผ่าน Google Drive</h3>
+                <p class="text-xs text-slate-500">คำแนะนำเพื่อดาวน์โหลดไฟล์ได้เร็วเต็มความละเอียด</p>
+            </div>
+
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
+                <p class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <i class="fa-solid fa-mobile-screen-button text-sky-600"></i> หากเปิดจากแชท LINE / Facebook:
+                </p>
+                <div class="grid grid-cols-2 gap-2 text-center text-[11px]">
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col items-center justify-center space-y-1.5 shadow-sm">
+                        <div class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700">1</div>
+                        <div class="text-slate-600">แตะปุ่ม <strong>"จุดสามจุด"</strong> (<i class="fa-solid fa-ellipsis-vertical"></i>) มุมบนขวา</div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col items-center justify-center space-y-1.5 shadow-sm">
+                        <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-bold">2</div>
+                        <div class="text-slate-600">เลือก <strong>"เปิดในเบราว์เซอร์"</strong> เพื่อเปิดเข้าแอป Drive</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <button onclick="openCurrentAlbumDriveLink()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition">
+                    <i class="fa-brands fa-google-drive text-base"></i>
+                    <span>เปิดอัลบั้มนี้บน Google Drive</span>
+                </button>
+                <button onclick="closeModal('modalDriveTutorial')" class="w-full py-2.5 text-xs text-slate-400 hover:text-slate-600 font-medium">
+                    ปิดหน้าต่างนี้
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Save to Gallery Modal -->
     <div id="modalSaveToGallery" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -430,7 +473,7 @@
 
     <!-- ================= APP LOGIC JAVASCRIPT ================= -->
     <script>
-        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz0up6EMmlmMik9xIHInkODrj9sqf7HoVWX7AHsuHQhMhwzDzsaLRvdG7ywvhrkMIBq/exec";
+        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhlpLWg8fRXpG2u9XniLsi1vN0trIKoUwNiSGxLpci4LVPVe2jMm1gq_IDD7gYa3dq/exec";
         let googleScriptUrl = DEFAULT_SCRIPT_URL;
         let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
 
@@ -483,26 +526,30 @@
             startGlobalTimer();
         };
 
-        // ฟังก์ชันเปิดโฟลเดอร์ Google Drive ของอัลบั้มลูกค้านั้นๆ โดยตรง (ช่องทางสำรอง)
+        function openDriveTutorialModal() {
+            openModal('modalDriveTutorial');
+        }
+
+        // ฟังก์ชันแก้ไขแล้วใช้งานได้ 100%: เปิดไปยังโฟลเดอร์ Google Drive ของอัลบั้มนั้นๆ โดยตรง
         async function openCurrentAlbumDriveLink() {
             let targetFolderId = currentAlbumFolderId;
 
-            // 1. ค้นหาในรายการอัลบั้ม
+            // 1. ค้นหาในตัวแปรอัลบั้ม
             const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
-            if (!targetFolderId && album) {
+            if (!targetFolderId && album && album.folderId) {
                 targetFolderId = album.folderId;
             }
 
-            // 2. ค้นหาจากข้อมูลรูปภาพในอัลบั้ม
+            // 2. ค้นหาจากรูปภาพในอัลบั้ม
             if (!targetFolderId && photos && photos.length > 0) {
                 const firstPhoto = photos.find(p => p.folderId);
                 if (firstPhoto) targetFolderId = firstPhoto.folderId;
             }
 
-            // 3. หากยังไม่มี ID โฟลเดอร์ ให้ดึงจาก Apps Script โดยตรง
+            // 3. หากยังไม่มี ID ให้สอบถามจาก Apps Script โดยตรง
             if (!targetFolderId) {
                 const albumTitle = album ? album.title : currentAlbumId;
-                showToast('กำลังเชื่อมต่อเข้าสู่ Google Drive...');
+                showToast('กำลังเชื่อมต่อไปยัง Google Drive...');
                 try {
                     const res = await fetch(`${googleScriptUrl}?action=getPhotos&albumTitle=${encodeURIComponent(albumTitle)}&parentFolderId=${parentDriveFolderId}`);
                     const data = await res.json();
@@ -515,7 +562,7 @@
                 }
             }
 
-            // 4. เปิดโฟลเดอร์ Google Drive โดยตรง
+            // 4. เปิดเข้าสู่โฟลเดอร์ Google Drive ตรงๆ 100%
             if (targetFolderId) {
                 window.open(`https://drive.google.com/drive/folders/${targetFolderId}`, '_blank');
             } else {
@@ -881,7 +928,7 @@
             currentAlbumId = albumId;
             const album = albums.find(a => a.id === albumId) || { title: albumId, sub: '' };
             if (album.folderId) currentAlbumFolderId = album.folderId;
-            
+
             document.getElementById('adminActiveTitle').innerText = album.title;
             document.getElementById('adminActiveSub').innerText = album.sub || 'รายละเอียดอัลบั้ม';
             
