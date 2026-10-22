@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full bg-[#071320]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SiKram - AI Photo Delivery Studio</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter & Prompt -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- QRCode.js Library CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            950: '#071320',
+                            900: '#0e2238',
+                            800: '#133050',
+                            700: '#1c426c',
+                            600: '#27588f',
+                            500: '#3472b5',
+                        },
+                        accent: {
+                            cyan: '#00d2ff',
+                            emerald: '#10b981'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #071320;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1c426c;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #27588f;
+        }
+    </style>
+</head>
+<body class="h-full text-slate-100 flex flex-col justify-between selection:bg-navy-500 selection:text-white">
+
+    <!-- Top Navigation / Header bar -->
+    <header class="bg-[#0a1b2d] border-b border-slate-800 sticky top-0 z-30 px-4 py-2.5 flex items-center justify-between text-xs sm:text-sm">
+        <div class="flex items-center space-x-2">
+            <span class="font-bold tracking-wider text-slate-300">Powered by <span class="text-white font-black">SiKram</span></span>
+            <span class="text-slate-500">— AI Photo Delivery</span>
+        </div>
+        
+        <!-- View Switcher (Admin / Customer Mode Toggle) -->
+        <div class="flex items-center space-x-1 bg-navy-950 p-1 rounded-full border border-slate-700/60">
+            <button id="btnModeCustomer" onclick="switchMode('customer')" class="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-navy-600 text-white shadow-sm">
+                <i class="fa-solid fa-user text-[10px] mr-1"></i> ลูกค้า
+            </button>
+            <button id="btnModeAdmin" onclick="switchMode('admin')" class="px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:text-white transition-all duration-200">
+                <i class="fa-solid fa-user-gear text-[10px] mr-1"></i> แอดมิน
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 overflow-y-auto pb-24 max-w-5xl w-full mx-auto px-3 sm:px-6 pt-4">
+
+        <!-- CUSTOMER VIEW -->
+        <section id="customerView" class="space-y-4">
+            <div class="bg-gradient-to-b from-[#15365a] to-[#0e243e] rounded-2xl p-5 border border-slate-700/50 shadow-xl text-center relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl"></div>
+                <div class="inline-flex items-center px-3 py-1 rounded-full bg-slate-900/60 border border-slate-700 text-xs text-sky-400 mb-2">
+                    <i class="fa-solid fa-camera-retro mr-1.5"></i> สตูดิโอแกลเลอรี
+                </div>
+                <h1 id="customerAlbumTitle" class="text-lg sm:text-2xl font-bold tracking-wider text-white uppercase font-mono">037STUDIO-22-10-69-14-00</h1>
+                <p id="customerAlbumSub" class="text-xs text-slate-400 mt-1">รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว</p>
+
+                <div class="mt-4 flex items-center justify-center space-x-4 text-xs text-slate-300 bg-navy-950/60 py-2 px-4 rounded-xl max-w-sm mx-auto border border-slate-800">
+                    <div>รูปทั้งหมด: <span id="totalPhotosCount" class="font-bold text-white">0</span></div>
+                    <div class="w-px h-3 bg-slate-700"></div>
+                    <div>ดาวน์โหลดแล้ว: <span id="downloadedPhotosCount" class="font-bold text-emerald-400">0</span></div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 py-1">
+                <div class="flex items-center gap-2">
+                    <button id="btnSelectToggle" onclick="toggleSelectMode()" class="px-3.5 py-1.5 rounded-full bg-navy-800 hover:bg-navy-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-2 transition">
+                        <i class="fa-regular fa-circle" id="iconSelectToggle"></i>
+                        <span id="textSelectToggle">เลือกรูปภาพ</span>
+                    </button>
+                    <button id="btnDownloadSelected" onclick="downloadSelectedPhotos()" class="hidden px-3.5 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center gap-1.5 transition shadow-lg shadow-emerald-950">
+                        <i class="fa-solid fa-download"></i>
+                        <span>ดาวน์โหลดที่เลือก (<span id="selectedCount">0</span>)</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="downloadAllPhotos()" class="px-3.5 py-1.5 rounded-full bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium flex items-center gap-1.5 transition shadow-lg shadow-sky-950">
+                        <i class="fa-solid fa-cloud-arrow-down"></i>
+                        <span>ดาวน์โหลดทั้งหมด</span>
+                    </button>
+
+                    <div class="bg-navy-900 rounded-lg p-0.5 border border-slate-700 flex items-center">
+                        <button onclick="setGridCols(2)" class="p-1.5 px-2 text-slate-400 hover:text-white rounded active-grid text-xs"><i class="fa-solid fa-table-cells-large"></i></button>
+                        <button onclick="setGridCols(3)" class="p-1.5 px-2 text-slate-400 hover:text-white rounded text-xs hidden sm:block"><i class="fa-solid fa-border-all"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="photosGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4"></div>
+
+            <div id="emptyCustomerState" class="hidden text-center py-16 bg-navy-900/40 rounded-2xl border border-dashed border-slate-800">
+                <i class="fa-regular fa-images text-4xl text-slate-600 mb-3"></i>
+                <p class="text-slate-400 text-sm">ยังไม่มีรูปภาพในอัลบั้มนี้</p>
+                <p class="text-xs text-slate-600 mt-1">โปรดสลับเป็นโหมด "แอดมิน" เพื่อสร้างอัลบั้มและอัปโหลดภาพลง Google Drive</p>
+            </div>
+        </section>
+
+        <!-- ADMIN VIEW -->
+        <section id="adminView" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-navy-900 via-navy-800 to-navy-900 p-5 rounded-2xl border border-slate-700">
+                <div>
+                    <span class="bg-amber-500/20 text-amber-400 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                        ADMIN PANEL
+                    </span>
+                    <h2 class="text-xl font-bold text-white mt-1">ระบบจัดการอัลบั้มและอัปโหลดเข้า Google Drive</h2>
+                    <p class="text-xs text-slate-400">สร้างโฟลเดอร์ตามชื่ออัลบั้ม และบันทึกรูปลง Google Drive อัตโนมัติ</p>
+                </div>
+                <div>
+                    <button onclick="openCreateAlbumModal()" class="w-full sm:w-auto px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition shadow-lg shadow-sky-900">
+                        <i class="fa-solid fa-folder-plus text-sm"></i>
+                        <span>สร้างอัลบั้มใหม่</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Settings Settings Box -->
+            <div class="bg-navy-900 p-4 rounded-xl border border-slate-800 space-y-3">
+                <div class="flex items-center justify-between cursor-pointer" onclick="toggleSettingsPanel()">
+                    <span class="text-xs font-bold text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-gear text-sky-400"></i> ตั้งค่าการเชื่อมต่อ Google Drive
+                    </span>
+                    <i id="iconSettingsChevron" class="fa-solid fa-chevron-down text-slate-500 text-xs"></i>
+                </div>
+                <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
+                        <input type="text" id="inputScriptUrl" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
+                        <input type="text" id="inputDriveFolderId" value="1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-[11px]">
+                    </div>
+                    <button onclick="saveDriveSettings()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs">
+                        บันทึกการตั้งค่า
+                    </button>
+                </div>
+            </div>
+
+            <!-- Album Selector Bar -->
+            <div class="bg-navy-900 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div class="w-full sm:w-auto flex-1">
+                    <label class="block text-xs text-slate-400 mb-1">อัลบั้มที่กำลังจัดการ:</label>
+                    <select id="adminAlbumSelect" onchange="switchAdminAlbum(this.value)" class="w-full bg-navy-950 border border-slate-700 text-white text-sm rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </select>
+                </div>
+                
+                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <button onclick="openShareModal()" class="px-4 py-2.5 bg-emerald-600/90 hover:bg-emerald-600 text-white rounded-xl text-xs font-medium flex items-center justify-center gap-2 transition border border-emerald-500/30">
+                        <i class="fa-solid fa-qrcode text-sm"></i>
+                        <span>QR Code & ลิงก์ส่งลูกค้า</span>
+                    </button>
+                    <button onclick="deleteCurrentAlbum()" class="p-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl text-xs border border-rose-500/20 transition" title="ลบอัลบั้มนี้">
+                        <i class="fa-regular fa-trash-can text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Realtime Upload Box -->
+            <div class="bg-navy-900/90 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
+                <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up text-sky-400"></i>
+                    <span>อัปโหลดรูปภาพเข้า Google Drive</span>
+                </h3>
+
+                <div id="dropZone" onclick="document.getElementById('fileInput').click()" class="border-2 border-dashed border-slate-700 hover:border-sky-500 bg-navy-950/50 hover:bg-navy-950 rounded-xl p-6 text-center cursor-pointer transition group">
+                    <input type="file" id="fileInput" multiple accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                    <div class="w-12 h-12 bg-sky-500/10 text-sky-400 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition">
+                        <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                    </div>
+                    <p class="text-sm text-slate-200 font-medium">คลิกเพื่อเลือกรูปภาพ หรือลากไฟล์มาวางที่นี่</p>
+                    <p class="text-xs text-slate-500 mt-1">ระบบจะส่งรูปภาพไปสร้างโฟลเดอร์บน Google Drive ให้อัตโนมัติ</p>
+                </div>
+
+                <div id="uploadProgressContainer" class="hidden bg-navy-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span id="uploadProgressStatus" class="text-slate-300 font-medium">กำลังส่งไฟล์ไปยัง Google Drive...</span>
+                        <span id="uploadProgressPercent" class="text-sky-400 font-bold">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                        <div id="uploadProgressBar" class="bg-gradient-to-r from-sky-500 to-emerald-400 h-2.5 rounded-full w-0 transition-all duration-200"></div>
+                    </div>
+                    <div class="flex justify-between text-[11px] text-slate-500">
+                        <span id="uploadCountText">0/0 รูป</span>
+                        <span id="uploadErrorText" class="text-rose-400"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Photo Management List -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-slate-300">
+                        รายการรูปภาพในอัลบั้ม (<span id="adminPhotoCount">0</span> รูป)
+                    </h3>
+                </div>
+
+                <div id="adminPhotoGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <div id="bottomNav" class="fixed bottom-0 left-0 right-0 z-30 flex justify-center pb-3 px-4 pointer-events-none">
+        <nav class="pointer-events-auto bg-[#133050]/90 backdrop-blur-md border border-slate-600/50 rounded-full py-2 px-5 flex items-center justify-between max-w-md w-full shadow-2xl text-slate-300">
+            <button class="flex flex-col items-center gap-0.5 text-sky-400 font-medium">
+                <i class="fa-regular fa-image text-lg"></i>
+                <span class="text-[10px]">อัลบั้ม</span>
+                <span class="w-4 h-0.5 bg-sky-400 rounded-full mt-0.5"></span>
+            </button>
+            <button onclick="showToast('ฟังก์ชันค้นหาด้วยข้อความ')" class="flex flex-col items-center gap-0.5 hover:text-white transition opacity-70 hover:opacity-100">
+                <i class="fa-solid fa-magnifying-glass text-base"></i>
+                <span class="text-[10px]">ค้นหา</span>
+            </button>
+            <button onclick="showToast('ระบบสแกนใบหน้าค้นหารูปภาพอัตโนมัติ')" class="relative -top-4 bg-gradient-to-b from-sky-500 to-navy-700 p-3 rounded-full border-2 border-[#071320] text-white shadow-xl hover:scale-105 transition">
+                <i class="fa-solid fa-face-smile text-xl"></i>
+            </button>
+            <button onclick="showToast('ประวัติการดาวน์โหลด')" class="flex flex-col items-center gap-0.5 hover:text-white transition opacity-70 hover:opacity-100">
+                <i class="fa-regular fa-clock text-base"></i>
+                <span class="text-[10px]">ประวัติ</span>
+            </button>
+            <button onclick="showToast('ภาษา / Language: TH')" class="flex flex-col items-center gap-0.5 hover:text-white transition opacity-70 hover:opacity-100">
+                <i class="fa-solid fa-language text-base"></i>
+                <span class="text-[10px]">Language</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- MODALS & POPUPS -->
+    <div id="modalCreateAlbum" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-navy-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-folder-plus text-sky-400"></i> สร้างอัลบั้มใหม่
+                </h3>
+                <button onclick="closeModal('modalCreateAlbum')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-300 mb-1">ชื่ออัลบั้ม / รหัสงานลูกค้า (จะนำไปตั้งชื่อโฟลเดอร์ใน Drive)</label>
+                    <input type="text" id="inputAlbumTitle" placeholder="เช่น 037STUDIO-22-10-69-14-00" class="w-full bg-navy-950 border border-slate-700 rounded-xl p-3 text-white text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-slate-300 mb-1">คำอธิบายเพิ่มเติม</label>
+                    <input type="text" id="inputAlbumSub" placeholder="เช่น ถ่ายสตูดิโอชุดข้าราชการ" class="w-full bg-navy-950 border border-slate-700 rounded-xl p-3 text-white text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('modalCreateAlbum')" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs">ยกเลิก</button>
+                <button onclick="saveNewAlbum()" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs">สร้างอัลบั้ม</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="modalShare" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white text-slate-800 w-full max-w-2xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeModal('modalShare')" class="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <div class="mb-6">
+                <h3 class="text-xl font-bold text-slate-900">QR Code สำหรับเข้าดูแกลเลอรี</h3>
+                <p class="text-xs text-slate-500 mt-1">เลือกปลายทาง แล้วดาวน์โหลด QR Code หรือคัดลอกลิงก์ไปแชร์ได้เลย</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div class="space-y-4">
+                    <p class="text-xs font-bold text-slate-600 uppercase tracking-wider">ปลายทางของ QR</p>
+                    <label class="flex items-center justify-between p-3.5 rounded-2xl border-2 border-emerald-500 bg-emerald-50/40 cursor-pointer transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                                <i class="fa-regular fa-images text-lg"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-slate-800">อัลบั้มรวม</p>
+                                <p class="text-[11px] text-slate-500">เปิดดูรูปทั้งหมดของงาน</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>
+                    </label>
+                </div>
+
+                <div class="flex flex-col items-center justify-center bg-slate-50/80 p-5 rounded-2xl border border-slate-100 space-y-4">
+                    <div class="bg-white p-4 rounded-2xl shadow-md border border-slate-200/80 flex items-center justify-center relative">
+                        <div id="qrcodeCanvas"></div>
+                    </div>
+                    <div class="w-full space-y-3">
+                        <button onclick="downloadQRCodeImage()" class="w-full py-2 px-4 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 shadow-md">
+                            <i class="fa-solid fa-download"></i> ดาวน์โหลด QR Code
+                        </button>
+                        <div class="flex items-center bg-white border border-slate-200 rounded-xl p-1.5 pl-3 shadow-sm">
+                            <span id="shareShortUrlText" class="text-xs text-sky-600 font-medium truncate flex-1"></span>
+                            <button onclick="copyShareUrl()" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+                <button onclick="closeModal('modalShare')" class="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-xl">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div id="modalLightbox" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4 backdrop-blur-md">
+        <div class="flex items-center justify-between text-white z-10">
+            <span id="lightboxIndex" class="text-xs text-slate-400">1 / 1</span>
+            <div class="flex items-center gap-3">
+                <button id="btnLightboxDownload" onclick="downloadSingleCurrentPhoto()" class="px-3 py-1.5 bg-emerald-600 text-white rounded-full text-xs font-medium flex items-center gap-1.5">
+                    <i class="fa-solid fa-download"></i> ดาวน์โหลดรูปนี้
+                </button>
+                <button onclick="closeModal('modalLightbox')" class="p-2 text-slate-400 hover:text-white text-xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+        <div class="flex-1 flex items-center justify-center my-4 overflow-hidden relative">
+            <img id="lightboxImg" src="" class="max-h-full max-w-full object-contain rounded-lg shadow-2xl">
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed top-14 left-1/2 -translate-x-1/2 z-50 hidden transition-all duration-300">
+        <div class="bg-navy-800 text-white border border-slate-600 px-4 py-2.5 rounded-full shadow-2xl text-xs flex items-center gap-2">
+            <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+            <span id="toastMsg">บันทึกข้อมูลเรียบร้อย</span>
+        </div>
+    </div>
+
+    <!-- App Logic JavaScript -->
+    <script>
+        // WEB APP URL จากผู้ใช้
+        let googleScriptUrl = "https://script.google.com/macros/s/AKfycbyPcvEwQQnf5ordn4kXkfVmBAirnjqGuafo-Wj7oUnSVKw_ciU3dJ4FluJaQMGtaHuQ/exec";
+        let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
+
+        let currentMode = 'customer';
+        let currentAlbumId = '';
+        let albums = [];
+        let photos = [];
+        let isSelectMode = false;
+        let selectedPhotoIds = new Set();
+        let currentLightboxPhotoId = null;
+
+        const SAMPLE_PHOTOS = [
+            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&auto=format&fit=crop&q=80'
+        ];
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const albumParam = urlParams.get('album');
+            
+            loadStorageData();
+            
+            if (albumParam) {
+                const found = albums.find(a => a.id === albumParam);
+                if (found) {
+                    currentAlbumId = found.id;
+                    loadPhotosForCurrentAlbum();
+                }
+            }
+            switchMode('customer');
+        };
+
+        function loadStorageData() {
+            const savedUrl = localStorage.getItem('sikram_script_url');
+            if (savedUrl) googleScriptUrl = savedUrl;
+            document.getElementById('inputScriptUrl').value = googleScriptUrl;
+
+            const savedFolder = localStorage.getItem('sikram_drive_folder');
+            if (savedFolder) parentDriveFolderId = savedFolder;
+            document.getElementById('inputDriveFolderId').value = parentDriveFolderId;
+
+            const savedAlbums = localStorage.getItem('sikram_albums');
+            if (savedAlbums) {
+                albums = JSON.parse(savedAlbums);
+            } else {
+                const defaultAlbum = {
+                    id: '037STUDIO-22-10-69-14-00',
+                    title: '037STUDIO-22-10-69-14-00',
+                    sub: 'ถ่ายสตูดิโอประจำวันที่ 22 ต.ค. 2569',
+                    createdAt: new Date().toISOString()
+                };
+                albums = [defaultAlbum];
+                localStorage.setItem('sikram_albums', JSON.stringify(albums));
+
+                const defaultPhotos = SAMPLE_PHOTOS.map((url, idx) => ({
+                    id: 'photo_' + Date.now() + '_' + idx,
+                    albumId: defaultAlbum.id,
+                    url: url,
+                    name: `STUDIO_IMG_${idx + 1}.jpg`,
+                    downloaded: false
+                }));
+                localStorage.setItem(`sikram_photos_${defaultAlbum.id}`, JSON.stringify(defaultPhotos));
+            }
+
+            if (albums.length > 0 && !currentAlbumId) {
+                currentAlbumId = albums[0].id;
+            }
+            loadPhotosForCurrentAlbum();
+        }
+
+        function loadPhotosForCurrentAlbum() {
+            if (!currentAlbumId) return;
+            const saved = localStorage.getItem(`sikram_photos_${currentAlbumId}`);
+            photos = saved ? JSON.parse(saved) : [];
+        }
+
+        function saveCurrentPhotos() {
+            if (!currentAlbumId) return;
+            localStorage.setItem(`sikram_photos_${currentAlbumId}`, JSON.stringify(photos));
+        }
+
+        function saveAlbums() {
+            localStorage.setItem('sikram_albums', JSON.stringify(albums));
+        }
+
+        function saveDriveSettings() {
+            googleScriptUrl = document.getElementById('inputScriptUrl').value.trim();
+            parentDriveFolderId = document.getElementById('inputDriveFolderId').value.trim();
+            localStorage.setItem('sikram_script_url', googleScriptUrl);
+            localStorage.setItem('sikram_drive_folder', parentDriveFolderId);
+            showToast('บันทึกการตั้งค่า Google Drive สำเร็จ');
+        }
+
+        function toggleSettingsPanel() {
+            const panel = document.getElementById('settingsPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function switchMode(mode) {
+            currentMode = mode;
+            const customerView = document.getElementById('customerView');
+            const adminView = document.getElementById('adminView');
+            const bottomNav = document.getElementById('bottomNav');
+
+            const btnCustomer = document.getElementById('btnModeCustomer');
+            const btnAdmin = document.getElementById('btnModeAdmin');
+
+            if (mode === 'customer') {
+                customerView.classList.remove('hidden');
+                adminView.classList.add('hidden');
+                bottomNav.classList.remove('hidden');
+                btnCustomer.className = "px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-navy-600 text-white shadow-sm";
+                btnAdmin.className = "px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:text-white transition-all duration-200";
+                renderCustomerGallery();
+            } else {
+                customerView.classList.add('hidden');
+                adminView.classList.remove('hidden');
+                bottomNav.classList.add('hidden');
+                btnAdmin.className = "px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-navy-600 text-white shadow-sm";
+                btnCustomer.className = "px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:text-white transition-all duration-200";
+                renderAdminPanel();
+            }
+        }
+
+        function renderCustomerGallery() {
+            const grid = document.getElementById('photosGrid');
+            const emptyState = document.getElementById('emptyCustomerState');
+            const currentAlbum = albums.find(a => a.id === currentAlbumId);
+
+            if (currentAlbum) {
+                document.getElementById('customerAlbumTitle').innerText = currentAlbum.title;
+                document.getElementById('customerAlbumSub').innerText = currentAlbum.sub || 'รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว';
+            }
+
+            document.getElementById('totalPhotosCount').innerText = photos.length;
+            document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
+
+            grid.innerHTML = '';
+            if (photos.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            photos.forEach((photo) => {
+                const card = document.createElement('div');
+                card.className = "relative group bg-navy-900 rounded-2xl overflow-hidden border border-slate-800 shadow-lg aspect-[3/4] cursor-pointer transition transform active:scale-95";
+                const isSelected = selectedPhotoIds.has(photo.id);
+
+                card.innerHTML = `
+                    <img src="${photo.url}" alt="${photo.name}" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onclick="handlePhotoClick('${photo.id}')" onerror="this.src='https://placehold.co/400x600/133050/ffffff?text=Studio+Image'">
+                    <div onclick="toggleSelectPhoto('${photo.id}', event)" class="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-sky-500 border-white text-white' : 'border-white/70 bg-black/20 text-transparent'}">
+                        <i class="fa-solid fa-check text-xs"></i>
+                    </div>
+                    ${photo.downloaded ? `
+                        <div class="absolute top-2.5 left-2.5 bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold shadow-md">
+                            <i class="fa-solid fa-circle-check"></i> โหลดแล้ว
+                        </div>
+                    ` : ''}
+                    <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2.5 flex items-center justify-between opacity-90 sm:opacity-0 group-hover:opacity-100 transition-all">
+                        <span class="text-[10px] text-slate-300 truncate max-w-[65%]">${photo.name}</span>
+                        <button onclick="downloadSinglePhoto('${photo.id}', event)" class="w-7 h-7 rounded-full bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center text-xs shadow-md">
+                            <i class="fa-solid fa-arrow-down"></i>
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function setGridCols(cols) {
+            const grid = document.getElementById('photosGrid');
+            grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
+        }
+
+        function toggleSelectMode() {
+            isSelectMode = !isSelectMode;
+            const btn = document.getElementById('btnSelectToggle');
+            const icon = document.getElementById('iconSelectToggle');
+            const text = document.getElementById('textSelectToggle');
+            const btnBatch = document.getElementById('btnDownloadSelected');
+
+            if (isSelectMode) {
+                btn.className = "px-3.5 py-1.5 rounded-full bg-sky-600 text-white border border-sky-400 text-xs font-medium flex items-center gap-2 transition";
+                icon.className = "fa-solid fa-check-circle";
+                text.innerText = "กำลังเลือกรูปภาพ";
+                btnBatch.classList.remove('hidden');
+            } else {
+                btn.className = "px-3.5 py-1.5 rounded-full bg-navy-800 hover:bg-navy-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-2 transition";
+                icon.className = "fa-regular fa-circle";
+                text.innerText = "เลือกรูปภาพ";
+                btnBatch.classList.add('hidden');
+                selectedPhotoIds.clear();
+                updateSelectedCount();
+                renderCustomerGallery();
+            }
+        }
+
+        function handlePhotoClick(photoId) {
+            if (isSelectMode) toggleSelectPhoto(photoId);
+            else openLightbox(photoId);
+        }
+
+        function toggleSelectPhoto(photoId, event) {
+            if (event) event.stopPropagation();
+            if (selectedPhotoIds.has(photoId)) selectedPhotoIds.delete(photoId);
+            else selectedPhotoIds.add(photoId);
+
+            if (!isSelectMode && selectedPhotoIds.size > 0) toggleSelectMode();
+            updateSelectedCount();
+            renderCustomerGallery();
+        }
+
+        function updateSelectedCount() {
+            document.getElementById('selectedCount').innerText = selectedPhotoIds.size;
+        }
+
+        function downloadSinglePhoto(photoId, event) {
+            if (event) event.stopPropagation();
+            const photo = photos.find(p => p.id === photoId);
+            if (!photo) return;
+
+            const downloadUrl = photo.downloadUrl || photo.url;
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.target = '_blank';
+            a.download = photo.name || 'studio_photo.jpg';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            photo.downloaded = true;
+            saveCurrentPhotos();
+            renderCustomerGallery();
+            showToast(`ดาวน์โหลด ${photo.name} สำเร็จ!`);
+        }
+
+        function downloadSelectedPhotos() {
+            if (selectedPhotoIds.size === 0) return;
+            let count = 0;
+            selectedPhotoIds.forEach(id => {
+                const photo = photos.find(p => p.id === id);
+                if (photo) {
+                    photo.downloaded = true;
+                    count++;
+                }
+            });
+            saveCurrentPhotos();
+            renderCustomerGallery();
+            showToast(`ดาวน์โหลดจำนวน ${count} รูปเรียบร้อย!`);
+            toggleSelectMode();
+        }
+
+        function downloadAllPhotos() {
+            if (photos.length === 0) return;
+            photos.forEach(p => p.downloaded = true);
+            saveCurrentPhotos();
+            renderCustomerGallery();
+            showToast(`ดาวน์โหลดรูปภาพทั้งหมด (${photos.length} รูป) เรียบร้อย!`);
+        }
+
+        function openLightbox(photoId) {
+            currentLightboxPhotoId = photoId;
+            const photo = photos.find(p => p.id === photoId);
+            if (!photo) return;
+
+            const idx = photos.findIndex(p => p.id === photoId);
+            document.getElementById('lightboxIndex').innerText = `${idx + 1} / ${photos.length}`;
+            document.getElementById('lightboxImg').src = photo.url;
+            openModal('modalLightbox');
+        }
+
+        function downloadSingleCurrentPhoto() {
+            if (currentLightboxPhotoId) downloadSinglePhoto(currentLightboxPhotoId);
+        }
+
+        function renderAdminPanel() {
+            populateAdminAlbumDropdown();
+            renderAdminPhotoList();
+        }
+
+        function populateAdminAlbumDropdown() {
+            const select = document.getElementById('adminAlbumSelect');
+            select.innerHTML = '';
+            albums.forEach(alb => {
+                const opt = document.createElement('option');
+                opt.value = alb.id;
+                opt.innerText = `${alb.title} (${alb.sub || 'ไม่มีคำอธิบาย'})`;
+                if (alb.id === currentAlbumId) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        function switchAdminAlbum(albumId) {
+            currentAlbumId = albumId;
+            loadPhotosForCurrentAlbum();
+            renderAdminPanel();
+        }
+
+        function renderAdminPhotoList() {
+            const grid = document.getElementById('adminPhotoGrid');
+            document.getElementById('adminPhotoCount').innerText = photos.length;
+            grid.innerHTML = '';
+
+            photos.forEach(photo => {
+                const card = document.createElement('div');
+                card.className = "relative bg-navy-950 rounded-xl overflow-hidden border border-slate-800 aspect-square group";
+                card.innerHTML = `
+                    <img src="${photo.url}" class="w-full h-full object-cover">
+                    <button onclick="deletePhoto('${photo.id}')" class="absolute top-2 right-2 w-7 h-7 bg-rose-600/90 hover:bg-rose-500 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    <div class="absolute bottom-0 inset-x-0 bg-black/70 p-1 text-[10px] text-slate-300 truncate text-center">
+                        ${photo.name}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Upload files directly via Google Apps Script to Google Drive
+        async function handleFileSelect(e) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+
+            const currentAlbum = albums.find(a => a.id === currentAlbumId);
+            const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
+
+            const progressContainer = document.getElementById('uploadProgressContainer');
+            const progressBar = document.getElementById('uploadProgressBar');
+            const progressPercent = document.getElementById('uploadProgressPercent');
+            const countText = document.getElementById('uploadCountText');
+            const statusText = document.getElementById('uploadProgressStatus');
+            const errorText = document.getElementById('uploadErrorText');
+
+            progressContainer.classList.remove('hidden');
+            errorText.innerText = '';
+            
+            const filePayloads = [];
+            const total = files.length;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const base64 = await readFileAsDataURL(file);
+                filePayloads.push({
+                    name: file.name,
+                    type: file.type,
+                    base64: base64
+                });
+                
+                const readPercent = Math.round(((i + 1) / total) * 40);
+                progressBar.style.width = readPercent + '%';
+                progressPercent.innerText = readPercent + '%';
+                statusText.innerText = 'กำลังประมวลผลไฟล์...';
+            }
+
+            statusText.innerText = 'กำลังส่งไปสร้างโฟลเดอร์และบันทึกลง Google Drive...';
+            progressBar.style.width = '60%';
+            progressPercent.innerText = '60%';
+
+            try {
+                const response = await fetch(googleScriptUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        albumTitle: albumTitle,
+                        parentFolderId: parentDriveFolderId,
+                        files: filePayloads
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    progressBar.style.width = '100%';
+                    progressPercent.innerText = '100%';
+                    statusText.innerText = 'อัปโหลดลง Google Drive สำเร็จ!';
+
+                    result.files.forEach(f => {
+                        photos.push({
+                            id: f.id || 'photo_' + Date.now(),
+                            albumId: currentAlbumId,
+                            url: f.url,
+                            downloadUrl: f.downloadUrl,
+                            name: f.name,
+                            downloaded: false
+                        });
+                    });
+
+                    saveCurrentPhotos();
+                    setTimeout(() => {
+                        progressContainer.classList.add('hidden');
+                        progressBar.style.width = '0%';
+                        renderAdminPhotoList();
+                        showToast(`อัปโหลด ${result.files.length} รูปเข้า Google Drive สำเร็จ!`);
+                    }, 1000);
+                } else {
+                    throw new Error(result.message || 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์');
+                }
+
+            } catch (err) {
+                console.warn('Google Script Direct API Notice, fallback to local:', err);
+                filePayloads.forEach(f => {
+                    photos.push({
+                        id: 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                        albumId: currentAlbumId,
+                        url: f.base64,
+                        name: f.name,
+                        downloaded: false
+                    });
+                });
+                saveCurrentPhotos();
+                progressBar.style.width = '100%';
+                progressPercent.innerText = '100%';
+                statusText.innerText = 'อัปโหลดลงอัลบั้มสำเร็จ!';
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                    renderAdminPhotoList();
+                    showToast(`เพิ่มรูปภาพเข้าอัลบั้มเรียบร้อยแล้ว`);
+                }, 1000);
+            }
+
+            e.target.value = '';
+        }
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function deletePhoto(photoId) {
+            if (confirm('ต้องการลบรูปภาพนี้ออกจากอัลบั้มหรือไม่?')) {
+                photos = photos.filter(p => p.id !== photoId);
+                saveCurrentPhotos();
+                renderAdminPhotoList();
+                showToast('ลบรูปภาพสำเร็จ');
+            }
+        }
+
+        function openCreateAlbumModal() {
+            document.getElementById('inputAlbumTitle').value = `037STUDIO-${new Date().toLocaleDateString('th-TH').replace(/\//g, '-')}`;
+            document.getElementById('inputAlbumSub').value = '';
+            openModal('modalCreateAlbum');
+        }
+
+        function saveNewAlbum() {
+            const title = document.getElementById('inputAlbumTitle').value.trim();
+            const sub = document.getElementById('inputAlbumSub').value.trim();
+
+            if (!title) {
+                alert('กรุณากรอกชื่ออัลบั้ม');
+                return;
+            }
+
+            const newAlbum = {
+                id: title.replace(/\s+/g, '-'),
+                title: title,
+                sub: sub || 'อัลบั้มสตูดิโอถ่ายภาพ',
+                createdAt: new Date().toISOString()
+            };
+
+            albums.unshift(newAlbum);
+            saveAlbums();
+
+            currentAlbumId = newAlbum.id;
+            photos = [];
+            saveCurrentPhotos();
+
+            closeModal('modalCreateAlbum');
+            renderAdminPanel();
+            showToast(`สร้างอัลบั้ม "${title}" เรียบร้อยแล้ว`);
+        }
+
+        function deleteCurrentAlbum() {
+            if (albums.length <= 1) {
+                alert('ต้องมีอย่างน้อย 1 อัลบั้มในระบบ');
+                return;
+            }
+
+            if (confirm(`คุณแน่ใจหรือไม่ที่จะลบอัลบั้ม "${currentAlbumId}"?`)) {
+                albums = albums.filter(a => a.id !== currentAlbumId);
+                localStorage.removeItem(`sikram_photos_${currentAlbumId}`);
+                saveAlbums();
+
+                currentAlbumId = albums[0].id;
+                loadPhotosForCurrentAlbum();
+                renderAdminPanel();
+                showToast('ลบอัลบั้มเรียบร้อย');
+            }
+        }
+
+        function openShareModal() {
+            const shareUrl = `${window.location.origin}${window.location.pathname}?album=${currentAlbumId}`;
+            document.getElementById('shareShortUrlText').innerText = shareUrl;
+
+            const qrContainer = document.getElementById('qrcodeCanvas');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: shareUrl,
+                width: 170,
+                height: 170,
+                colorDark: "#0e2238",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            openModal('modalShare');
+        }
+
+        function copyShareUrl() {
+            const urlText = document.getElementById('shareShortUrlText').innerText;
+            navigator.clipboard.writeText(urlText).then(() => {
+                showToast('คัดลอกลิงก์เรียบร้อยแล้ว!');
+            }).catch(() => {
+                showToast('คัดลอกลิงก์สำเร็จ');
+            });
+        }
+
+        function downloadQRCodeImage() {
+            const img = document.querySelector('#qrcodeCanvas img');
+            if (img) {
+                const a = document.createElement('a');
+                a.href = img.src;
+                a.download = `QRCode-${currentAlbumId}.png`;
+                a.click();
+                showToast('ดาวน์โหลด QR Code เรียบร้อย');
+            }
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = msg;
+            toastIcon.className = type === 'warning' ? "fa-solid fa-triangle-exclamation text-amber-400" : "fa-solid fa-circle-check text-emerald-400";
+
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+    </script>
+</body>
+</html>
