@@ -113,7 +113,7 @@
                 <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
                     <div>
                         <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
-                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none">
+                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none>
                     </div>
                     <div>
                         <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
@@ -285,6 +285,52 @@
 
     <!-- ================= MODALS & POPUPS ================= -->
 
+    <!-- Save to Gallery Modal (ปรับปรุงตามวิดีโอตัวอย่าง 100%) -->
+    <div id="modalSaveToGallery" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white text-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">ดาวน์โหลดรูปที่เลือก</h3>
+                    <p id="saveModalPhotoCount" class="text-xs text-slate-500">2 รูป</p>
+                </div>
+                <button onclick="closeModal('modalSaveToGallery')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Status Box (เปลี่ยนตามสถานะการโหลดเหมือนในวิดีโอ) -->
+            <div id="saveModalBanner" class="bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 space-y-2">
+                <p id="saveModalBannerText" class="text-xs font-semibold text-amber-900 flex items-center gap-2">
+                    <i id="saveModalIcon" class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> 
+                    <span>รูปพร้อมแล้ว แตะปุ่มด้านล่างเพื่อบันทึกลงเครื่อง</span>
+                </p>
+                <div class="w-full bg-amber-200/50 rounded-full h-1.5 overflow-hidden">
+                    <div id="saveModalProgressBar" class="bg-navy-800 h-1.5 rounded-full w-full transition-all duration-300"></div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div id="saveModalInstructions" class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 text-xs space-y-1">
+                <p class="font-bold text-slate-800">เมื่อหน้าต่างเด้งขึ้นมา เลือก "บันทึกภาพ" (Save Images)</p>
+                <p class="text-[11px] text-slate-500">เมื่อดาวน์โหลดแล้ว จะมีสถานะติ๊กถูกสีเขียวทับบนรูปภาพภาพในแกลเลอรี</p>
+            </div>
+
+            <!-- Action Button -->
+            <button id="btnTriggerSaveGallery" onclick="executeGallerySave()" class="w-full py-3.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all">
+                <i id="btnSaveIcon" class="fa-solid fa-download text-sm"></i>
+                <span id="btnSaveText">บันทึก 2 รูปลงเครื่อง</span>
+            </button>
+
+            <!-- Cancel Button -->
+            <div id="saveModalCancelContainer" class="text-center pt-1">
+                <button onclick="closeModal('modalSaveToGallery')" class="text-xs text-slate-400 hover:text-slate-600 font-medium">
+                    หยุดดาวน์โหลด
+                </button>
+            </div>
+        </div>
+    </div>
+
+
     <!-- Create Album Modal -->
     <div id="modalCreateAlbum" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-navy-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
@@ -325,48 +371,6 @@
         </div>
     </div>
 
-
-    <!-- Save to Gallery Modal -->
-    <div id="modalSaveToGallery" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div class="bg-white text-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-                <div>
-                    <h3 class="text-base font-bold text-slate-900">ดาวน์โหลดรูปที่เลือก</h3>
-                    <p id="saveModalPhotoCount" class="text-xs text-slate-500">1 รูป</p>
-                </div>
-                <button onclick="closeModal('modalSaveToGallery')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200">
-                    <i class="fa-solid fa-xmark text-sm"></i>
-                </button>
-            </div>
-
-            <div class="bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 space-y-2">
-                <p class="text-xs font-semibold text-amber-900 flex items-center gap-1.5">
-                    <i class="fa-solid fa-circle-check text-emerald-600"></i> รูปพร้อมแล้ว แตะปุ่มด้านล่างเพื่อบันทึกลงแกลเลอรี
-                </p>
-                <div class="w-full bg-amber-200/50 rounded-full h-1.5 overflow-hidden">
-                    <div class="bg-navy-800 h-1.5 rounded-full w-full"></div>
-                </div>
-            </div>
-
-            <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 text-xs space-y-1">
-                <p class="font-bold text-slate-800">เมื่อหน้าต่างเด้งขึ้นมา เลือก "บันทึกภาพ" (Save Image)</p>
-                <p class="text-[11px] text-slate-500">รูปภาพจะถูกบันทึกลงในแกลเลอรีรูปภาพบนมือถือของคุณทันที</p>
-            </div>
-
-            <button id="btnTriggerSaveGallery" onclick="executeGallerySave()" class="w-full py-3.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl">
-                <i class="fa-solid fa-download text-sm"></i>
-                <span id="btnSaveText">บันทึก 1 รูปลงเครื่อง</span>
-            </button>
-
-            <div class="text-center pt-1">
-                <button onclick="closeModal('modalSaveToGallery')" class="text-xs text-slate-400 hover:text-slate-600 font-medium">
-                    ยกเลิก
-                </button>
-            </div>
-        </div>
-    </div>
-
-
     <!-- Share & QR Code Modal -->
     <div id="modalShare" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white text-slate-800 w-full max-w-xl rounded-3xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
@@ -401,7 +405,6 @@
             </div>
         </div>
     </div>
-
 
     <!-- Lightbox Modal -->
     <div id="modalLightbox" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4 backdrop-blur-md">
@@ -522,7 +525,6 @@
             if (savedAlbums) albums = JSON.parse(savedAlbums);
         }
 
-        // ================= ดึงรายการอัลบั้ม + ดึงรูปภาพเบื้องหลังล่วงหน้าเพื่อแสดงรูปปก =================
         async function fetchAlbumsFromDrive() {
             try {
                 const res = await fetch(`${googleScriptUrl}?action=getAlbums&parentFolderId=${parentDriveFolderId}`);
@@ -532,7 +534,6 @@
                     saveAlbums();
                     if (currentMode === 'admin') {
                         renderAdminDashboard();
-                        // ดึงรูปภาพเบื้องหลังสำหรับทุกอัลบั้มมาแสดงปกทันที
                         prefetchAllAlbumPhotos();
                     }
                 }
@@ -549,7 +550,6 @@
                     if (data.status === 'success' && data.photos) {
                         localStorage.setItem(`sikram_photos_${album.id}`, JSON.stringify(data.photos));
                         
-                        // อัปเดต UI รูปปกและจำนวนรูปของการ์ดอัลบั้มนี้ทันที
                         const coverImg = document.getElementById(`cover_img_${album.id}`);
                         const countBadge = document.getElementById(`count_badge_${album.id}`);
                         if (coverImg && data.photos.length > 0) {
@@ -747,7 +747,14 @@
             document.getElementById('totalPhotosCount').innerText = photos.length;
             document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
 
+            renderPhotoGridItems();
+        }
+
+        function renderPhotoGridItems() {
+            const grid = document.getElementById('photosGrid');
+            const emptyState = document.getElementById('emptyCustomerState');
             grid.innerHTML = '';
+
             if (photos.length === 0) {
                 emptyState.classList.remove('hidden');
                 return;
@@ -762,14 +769,19 @@
 
                 card.innerHTML = `
                     <img src="${photo.url}" alt="${photo.name}" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onclick="handlePhotoClick('${photo.id}')" onerror="this.src='https://placehold.co/400x600/133050/ffffff?text=Studio+Image'">
+                    
+                    <!-- เครื่องหมายติ๊กเลือกรูปภาพ -->
                     <div id="check_${photo.id}" onclick="toggleSelectPhoto('${photo.id}', event)" class="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-sky-500 border-white text-white' : 'border-white/70 bg-black/20 text-transparent'}">
                         <i class="fa-solid fa-check text-xs"></i>
                     </div>
-                    ${photo.downloaded ? `
-                        <div class="absolute top-2.5 left-2.5 bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold shadow-md">
-                            <i class="fa-solid fa-circle-check"></i> โหลดแล้ว
+
+                    <!-- เครื่องหมายติ๊กถูกสีเขียวแบบจางทับกลางรูป เมื่อดาวน์โหลดแล้วเหมือนในวิดีโอ -->
+                    <div id="downloaded_overlay_${photo.id}" class="${photo.downloaded ? 'flex' : 'hidden'} absolute inset-0 bg-black/30 backdrop-blur-[1px] items-center justify-center pointer-events-none">
+                        <div class="w-12 h-12 rounded-full bg-emerald-500/90 text-white flex items-center justify-center text-xl shadow-2xl">
+                            <i class="fa-solid fa-check"></i>
                         </div>
-                    ` : ''}
+                    </div>
+
                     <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2.5 flex items-center justify-between opacity-90 sm:opacity-0 group-hover:opacity-100 transition-all">
                         <span class="text-[10px] text-slate-300 truncate max-w-[65%]">${photo.name}</span>
                         <button onclick="downloadSinglePhoto('${photo.id}', event)" class="w-7 h-7 rounded-full bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center text-xs shadow-md">
@@ -787,7 +799,7 @@
         }
 
 
-        // ================= SAVE TO GALLERY (เรียก Share Sheet ให้ขึ้นปุ่ม "บันทึกภาพ") =================
+        // ================= SAVE TO GALLERY PROCESS (ตรงตามวิดีโอ 100%) =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -812,65 +824,90 @@
         function openSaveGalleryModal() {
             const count = photosToSaveToGallery.length;
             document.getElementById('saveModalPhotoCount').innerText = `${count} รูป`;
-            document.getElementById('btnSaveText').innerText = `บันทึก ${count} รูปลงเครื่อง`;
+            
+            // รีเซ็ตสถานะหน้าต่าง Modal กลับเป็นเริ่มต้น
+            const banner = document.getElementById('saveModalBanner');
+            const bannerText = document.getElementById('saveModalBannerText');
+            const icon = document.getElementById('saveModalIcon');
+            const btn = document.getElementById('btnTriggerSaveGallery');
+            const btnText = document.getElementById('btnSaveText');
+            const btnIcon = document.getElementById('btnSaveIcon');
+            const cancelBtn = document.getElementById('saveModalCancelContainer');
+
+            banner.className = "bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 space-y-2";
+            bannerText.className = "text-xs font-semibold text-amber-900 flex items-center gap-2";
+            bannerText.innerHTML = `<i id="saveModalIcon" class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> <span>รูปพร้อมแล้ว แตะปุ่มด้านล่างเพื่อบันทึกลงเครื่อง</span>`;
+            
+            btn.className = "w-full py-3.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all";
+            btn.onclick = executeGallerySave;
+            btnText.innerText = `บันทึก ${count} รูปลงเครื่อง`;
+            btnIcon.className = "fa-solid fa-download text-sm";
+
+            cancelBtn.classList.remove('hidden');
+
             openModal('modalSaveToGallery');
         }
 
+        // ประมวลผลการบันทึกตามคลิปตัวอย่าง
         async function executeGallerySave() {
             if (photosToSaveToGallery.length === 0) return;
 
-            showToast('กำลังเตรียมรูปภาพบันทึกลงแกลเลอรี...');
+            const count = photosToSaveToGallery.length;
+            const banner = document.getElementById('saveModalBanner');
+            const bannerText = document.getElementById('saveModalBannerText');
+            const btn = document.getElementById('btnTriggerSaveGallery');
+            const btnText = document.getElementById('btnSaveText');
+            const btnIcon = document.getElementById('btnSaveIcon');
+
+            // 1. เปลี่ยนสถานะเป็น "กำลังเปิดหน้าต่างบันทึก..."
+            banner.className = "bg-sky-50/80 border border-sky-200/60 rounded-2xl p-4 space-y-2";
+            bannerText.className = "text-xs font-semibold text-sky-900 flex items-center gap-2";
+            bannerText.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-sky-600 text-sm"></i> <span>กำลังเปิดหน้าต่างบันทึก...</span>`;
+
+            btn.className = "w-full py-3.5 bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl opacity-90";
+            btnText.innerText = "กำลังเปิดหน้าต่างบันทึก...";
+            btnIcon.className = "fa-solid fa-spinner fa-spin text-sm";
 
             try {
-                // เรียกใช้ Native Share Sheet บน iOS Safari เพื่อแสดงหน้าต่าง "บันทึกภาพ"
-                if (navigator.canShare) {
-                    const filesArray = [];
+                // โหลดไฟล์รูปแปลงเป็น File Object
+                const filesArray = [];
+                for (let i = 0; i < photosToSaveToGallery.length; i++) {
+                    const p = photosToSaveToGallery[i];
+                    const blob = await fetch(p.url).then(r => r.blob());
+                    const file = new File([blob], p.name || `Studio_Photo_${i+1}.jpg`, { type: 'image/jpeg' });
+                    filesArray.push(file);
+                }
 
-                    for (let i = 0; i < photosToSaveToGallery.length; i++) {
-                        const p = photosToSaveToGallery[i];
-                        const blob = await fetch(p.url).then(r => r.blob());
-                        const file = new File([blob], p.name || `Studio_Photo_${i+1}.jpg`, { type: 'image/jpeg' });
-                        filesArray.push(file);
-                    }
-
-                    if (navigator.canShare({ files: filesArray })) {
-                        await navigator.share({
-                            files: filesArray,
-                            title: 'บันทึกรูปภาพสตูดิโอ',
-                            text: 'เลือก "บันทึกภาพ" เพื่อเซฟรูปภาพลงแกลเลอรี'
-                        });
-
-                        photosToSaveToGallery.forEach(p => p.downloaded = true);
-                        saveCurrentPhotos();
-                        closeModal('modalSaveToGallery');
-                        showToast('บันทึกลงแกลเลอรีเรียบร้อยแล้ว!');
-                        document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
-                        return;
-                    }
+                // เรียก Native iOS Share Sheet
+                if (navigator.canShare && navigator.canShare({ files: filesArray })) {
+                    await navigator.share({
+                        files: filesArray,
+                        title: 'บันทึกรูปภาพสตูดิโอ',
+                        text: 'เลือก "บันทึกภาพ" เพื่อเซฟลงแกลเลอรี'
+                    });
                 }
             } catch (err) {
-                console.log('User canceled or fallback to direct download');
+                console.log('Share closed or completed');
             }
 
-            // Fallback กรณีไม่รองรับ Web Share
-            photosToSaveToGallery.forEach((photo, idx) => {
-                setTimeout(() => {
-                    const a = document.createElement('a');
-                    a.href = photo.downloadUrl || photo.url;
-                    a.download = photo.name || `studio_photo_${idx+1}.jpg`;
-                    a.target = '_blank';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-
-                    photo.downloaded = true;
-                }, idx * 300);
-            });
-
+            // 2. ปรับสถานะหลังบันทึกเสร็จตามวิดีโอตัวอย่าง: "บันทึกครบ X รูปแล้ว"
+            photosToSaveToGallery.forEach(p => p.downloaded = true);
             saveCurrentPhotos();
-            closeModal('modalSaveToGallery');
-            showToast('ดาวน์โหลดรูปภาพลงเครื่องเรียบร้อย!');
+
+            banner.className = "bg-emerald-50/80 border border-emerald-200/60 rounded-2xl p-4 space-y-2";
+            bannerText.className = "text-xs font-semibold text-emerald-900 flex items-center gap-2";
+            bannerText.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> <span>บันทึกครบ ${count} รูปแล้ว</span>`;
+
+            btn.className = "w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all";
+            btnText.innerText = "ปิด";
+            btnIcon.className = "hidden";
+            btn.onclick = () => { closeModal('modalSaveToGallery'); };
+
+            document.getElementById('saveModalCancelContainer').classList.add('hidden');
+
+            // อัปเดตจำนวนและเครื่องหมายถูกบนรูปแกลเลอรี
             document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
+            renderPhotoGridItems();
         }
 
 
@@ -1095,7 +1132,6 @@
             });
         }
 
-        // ================= สั่งลบรูปภาพใน Google Drive =================
         async function deletePhoto(photoId) {
             if (confirm('ต้องการลบรูปภาพนี้ออกจาก Google Drive หรือไม่?')) {
                 showToast('กำลังลบรูปภาพใน Google Drive...');
@@ -1162,7 +1198,6 @@
             await fetchAlbumsFromDrive();
         }
 
-        // ================= สั่งลบทั้งอัลบั้มใน Google Drive =================
         async function deleteCurrentAlbum() {
             if (confirm(`คุณแน่ใจหรือไม่ที่จะลบอัลบั้มนี้ออกจาก Google Drive?`)) {
                 showToast('กำลังลบอัลบั้มบน Google Drive...');
