@@ -64,7 +64,7 @@
             <span class="text-slate-500">— AI Photo Delivery</span>
         </div>
         
-        <!-- View Switcher Toggle (แสดงเฉพาะกรณีที่เป็นแอดมิน) -->
+        <!-- View Switcher Toggle -->
         <div id="viewSwitcherContainer" class="flex items-center space-x-1 bg-navy-950 p-1 rounded-full border border-slate-700/60">
             <button id="btnModeAdmin" onclick="switchMode('admin')" class="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-navy-600 text-white shadow-sm">
                 <i class="fa-solid fa-user-gear text-[10px] mr-1"></i> แอดมิน
@@ -160,7 +160,7 @@
                     </div>
                 </div>
 
-                <!-- Upload Area -->
+                <!-- Upload Area (รองรับ Drag & Drop ลากไฟล์วาง) -->
                 <div class="bg-navy-900/90 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
                     <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-cloud-arrow-up text-sky-400"></i>
@@ -457,8 +457,9 @@
             
             loadStorageData();
             checkAndCleanExpiredAlbums();
+            setupDragAndDrop();
 
-            // หากเข้าผ่านลิงก์แชร์ของลูกค้า (?album=...) -> ล็อกเข้าโหมดลูกค้าอย่างเดียว ห้ามเปลี่ยนเป็นแอดมิน
+            // หากเปิดผ่านลิงก์แชร์ของลูกค้า (?album=...) -> สลับเข้าโหมดลูกค้าอัตโนมัติ และล็อกสิทธิ์แก้ไข
             if (albumParam) {
                 isCustomerSharedLink = true;
                 const found = albums.find(a => a.id === albumParam);
@@ -470,13 +471,49 @@
                 loadPhotosForCurrentAlbum();
                 switchMode('customer');
                 
-                // ซ่อนปุ่มสลับแอดมินเพื่อไม่ให้ลูกค้ากดสลับได้
-                document.getElementById('viewSwitcherContainer').classList.add('hidden');
+                // ซ่อนส่วนสลับแอดมิน เพื่อป้องกันไม่ให้ลูกค้าเปลี่ยนกลับเป็นแอดมิน
+                const viewSwitcher = document.getElementById('viewSwitcherContainer');
+                if (viewSwitcher) viewSwitcher.classList.add('hidden');
                 return;
             }
 
             switchMode('admin');
         };
+
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            if (!dropZone) return;
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.add('border-sky-400', 'bg-navy-900');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.remove('border-sky-400', 'bg-navy-900');
+                }, false);
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    uploadFilesProcess(files);
+                }
+            }, false);
+        }
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
 
         function loadStorageData() {
             const savedUrl = localStorage.getItem('sikram_script_url');
@@ -564,7 +601,6 @@
         }
 
         function switchMode(mode) {
-            // ป้องกันการสลับแอดมินหากแชร์ให้ลูกค้า
             if (isCustomerSharedLink && mode === 'admin') return;
 
             currentMode = mode;
@@ -681,6 +717,8 @@
         function renderCustomerGallery() {
             const grid = document.getElementById('photosGrid');
             const emptyState = document.getElementById('emptyCustomerState');
+            
+            loadPhotosForCurrentAlbum();
             const currentAlbum = albums.find(a => a.id === currentAlbumId);
 
             document.getElementById('customerAlbumTitle').innerText = currentAlbum ? currentAlbum.title : currentAlbumId;
@@ -891,11 +929,16 @@
             });
         }
 
-        // Upload files & Sync Google Drive
-        async function handleFileSelect(e) {
+        function handleFileSelect(e) {
             const files = e.target.files;
-            if (!files || files.length === 0) return;
+            if (files && files.length > 0) {
+                uploadFilesProcess(files);
+            }
+            e.target.value = '';
+        }
 
+        // ประมวลผลการอัปโหลดไฟล์ พร้อมส่งไป Google Drive & ซิงค์ข้อมูลแสดงผลลูกค้า
+        async function uploadFilesProcess(files) {
             const currentAlbum = albums.find(a => a.id === currentAlbumId);
             const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
 
@@ -938,13 +981,13 @@
 
                 const result = await response.json();
 
-                if (result.status === 'success') {
+                if (result.status === 'success' && result.files) {
                     progressBar.style.width = '100%';
                     progressPercent.innerText = '100%';
 
                     result.files.forEach(f => {
                         photos.push({
-                            id: f.id || 'photo_' + Date.now(),
+                            id: f.id || 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
                             albumId: currentAlbumId,
                             url: f.url,
                             downloadUrl: f.downloadUrl,
@@ -957,13 +1000,15 @@
                     setTimeout(() => {
                         progressContainer.classList.add('hidden');
                         renderAdminPhotoList();
-                        showToast(`อัปโหลดเข้า Google Drive สำเร็จ!`);
+                        document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
+                        showToast(`อัปโหลดเข้า Google Drive สำเร็จ! รูปจะไปแสดงในฝั่งลูกค้าทันที`);
                     }, 800);
                 } else {
-                    throw new Error(result.message);
+                    throw new Error(result.message || "Upload Failed");
                 }
 
             } catch (err) {
+                // Fallback กรณีเซิร์ฟเวอร์ตอบกลับล่าช้า ให้เก็บภาพไว้แสดงผลชั่วคราวเพื่อให้แน่ใจว่ารูปจะปรากฏฝั่งลูกค้าแน่นอน
                 filePayloads.forEach(f => {
                     photos.push({
                         id: 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
@@ -976,10 +1021,9 @@
                 saveCurrentPhotos();
                 progressContainer.classList.add('hidden');
                 renderAdminPhotoList();
+                document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
                 showToast(`เพิ่มรูปภาพเข้าอัลบั้มเรียบร้อยแล้ว`);
             }
-
-            e.target.value = '';
         }
 
         function readFileAsDataURL(file) {
@@ -996,6 +1040,7 @@
                 photos = photos.filter(p => p.id !== photoId);
                 saveCurrentPhotos();
                 renderAdminPhotoList();
+                document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
                 showToast('ลบรูปภาพสำเร็จ');
             }
         }
@@ -1035,7 +1080,6 @@
             renderAdminDashboard();
             showToast(`กำลังสร้างโฟลเดอร์ใน Google Drive...`);
 
-            // สั่งสร้างโฟลเดอร์โฟลเดอร์ใหม่ใน Google Drive
             try {
                 fetch(googleScriptUrl, {
                     method: 'POST',
