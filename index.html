@@ -108,7 +108,7 @@
                 <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
                     <div>
                         <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
-                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwHA42mwUK4swJGF_G2hvPtf4x5JmBzw8nqIeW_mU_p_aCty6GaoxqljF7RemvmmQTy/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none">
+                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwHA42mwUK4swJGF_G2hvPtf4x5JmBzw8nqIeW_mU_p_aCty6GaoxqljF7RemvmmQTy/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none font-mono">
                     </div>
                     <div>
                         <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
@@ -483,26 +483,26 @@
             startGlobalTimer();
         };
 
-        // ฟังก์ชันเปิดลิงก์ไปยังโฟลเดอร์ Google Drive แบบใช้ ID ตรงเท่านั้น (ไม่มีการเปิดหน้า search)
+        // ฟังก์ชันเปิดโฟลเดอร์ Google Drive ของอัลบั้มลูกค้านั้นๆ โดยตรง (ช่องทางสำรอง)
         async function openCurrentAlbumDriveLink() {
             let targetFolderId = currentAlbumFolderId;
 
-            // 1. ตรวจสอบในตัวแปรอัลบั้ม
+            // 1. ค้นหาในรายการอัลบั้ม
             const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
             if (!targetFolderId && album) {
                 targetFolderId = album.folderId;
             }
 
-            // 2. ตรวจสอบในข้อมูลรูปภาพ
+            // 2. ค้นหาจากข้อมูลรูปภาพในอัลบั้ม
             if (!targetFolderId && photos && photos.length > 0) {
                 const firstPhoto = photos.find(p => p.folderId);
                 if (firstPhoto) targetFolderId = firstPhoto.folderId;
             }
 
-            // 3. ถ้ายังไม่มี ID โฟลเดอร์ ให้ดึงจาก Apps Script ทันที
+            // 3. หากยังไม่มี ID โฟลเดอร์ ให้ดึงจาก Apps Script โดยตรง
             if (!targetFolderId) {
                 const albumTitle = album ? album.title : currentAlbumId;
-                showToast('กำลังเตรียมลิงก์ Google Drive...');
+                showToast('กำลังเชื่อมต่อเข้าสู่ Google Drive...');
                 try {
                     const res = await fetch(`${googleScriptUrl}?action=getPhotos&albumTitle=${encodeURIComponent(albumTitle)}&parentFolderId=${parentDriveFolderId}`);
                     const data = await res.json();
@@ -515,7 +515,7 @@
                 }
             }
 
-            // 4. เปิดโฟลเดอร์โดยตรงผ่าน ID
+            // 4. เปิดโฟลเดอร์ Google Drive โดยตรง
             if (targetFolderId) {
                 window.open(`https://drive.google.com/drive/folders/${targetFolderId}`, '_blank');
             } else {
