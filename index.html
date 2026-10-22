@@ -241,63 +241,31 @@
 
     <!-- Bottom Nav Bar -->
     <div id="bottomNav" class="fixed bottom-0 left-0 right-0 z-30 flex justify-center pb-3 px-4 pointer-events-none">
-        <nav class="pointer-events-auto bg-[#133050]/90 backdrop-blur-md border border-slate-600/50 rounded-full py-2 px-6 flex items-center justify-around max-w-xs w-full shadow-2xl text-slate-300">
+        <nav class="pointer-events-auto bg-[#133050]/90 backdrop-blur-md border border-slate-600/50 rounded-full py-2 px-5 flex items-center justify-between max-w-md w-full shadow-2xl text-slate-300">
             <button class="flex flex-col items-center gap-0.5 text-sky-400 font-medium">
                 <i class="fa-regular fa-image text-lg"></i>
                 <span class="text-[10px]">อัลบั้ม</span>
                 <span class="w-4 h-0.5 bg-sky-400 rounded-full mt-0.5"></span>
             </button>
-            <button onclick="openCurrentAlbumDriveLink()" class="flex flex-col items-center gap-0.5 hover:text-white transition text-emerald-400">
-                <i class="fa-brands fa-google-drive text-lg"></i>
-                <span class="text-[10px] font-semibold">ดาวน์โหลดใน GoogleDrive</span>
+            <button onclick="showToast('ฟังก์ชันค้นหา')" class="flex flex-col items-center gap-0.5 hover:text-white transition opacity-70">
+                <i class="fa-solid fa-magnifying-glass text-base"></i>
+                <span class="text-[10px]">ค้นหา</span>
+            </button>
+            <button onclick="showToast('สแกนใบหน้าค้นหารูปภาพ')" class="relative -top-4 bg-gradient-to-b from-sky-500 to-navy-700 p-3 rounded-full border-2 border-[#071320] text-white shadow-xl hover:scale-105 transition">
+                <i class="fa-solid fa-face-smile text-xl"></i>
+            </button>
+            <button onclick="showToast('ประวัติการดาวน์โหลด')" class="flex flex-col items-center gap-0.5 hover:text-white transition opacity-70">
+                <i class="fa-regular fa-clock text-base"></i>
+                <span class="text-[10px]">ประวัติ</span>
+            </button>
+            <button onclick="showToast('Language: TH')" class="flex flex-col items-center gap-0.5 hover:text-white transition opacity-70">
+                <i class="fa-solid fa-language text-base"></i>
+                <span class="text-[10px]">Language</span>
             </button>
         </nav>
     </div>
 
     <!-- ================= MODALS & POPUPS ================= -->
-
-    <!-- Modal คำแนะนำเปิดใช้งาน Google Drive App -->
-    <div id="modalDriveTutorial" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white text-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
-            <button onclick="closeModal('modalDriveTutorial')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1">
-                <i class="fa-solid fa-xmark text-xl"></i>
-            </button>
-
-            <div class="text-center space-y-1 border-b border-slate-100 pb-3">
-                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-inner">
-                    <i class="fa-brands fa-google-drive"></i>
-                </div>
-                <h3 class="text-base font-bold text-slate-900 pt-1">ดาวน์โหลดภาพผ่าน Google Drive</h3>
-                <p class="text-xs text-slate-500">คำแนะนำเพื่อดาวน์โหลดไฟล์ได้เร็วเต็มความละเอียด</p>
-            </div>
-
-            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
-                <p class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <i class="fa-solid fa-mobile-screen-button text-sky-600"></i> หากเปิดจากแชท LINE / Facebook:
-                </p>
-                <div class="grid grid-cols-2 gap-2 text-center text-[11px]">
-                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col items-center justify-center space-y-1.5 shadow-sm">
-                        <div class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700">1</div>
-                        <div class="text-slate-600">แตะปุ่ม <strong>"จุดสามจุด"</strong> (<i class="fa-solid fa-ellipsis-vertical"></i>) มุมบนขวา</div>
-                    </div>
-                    <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col items-center justify-center space-y-1.5 shadow-sm">
-                        <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-bold">2</div>
-                        <div class="text-slate-600">เลือก <strong>"เปิดในเบราว์เซอร์"</strong> เพื่อเปิดเข้าแอป Drive</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="space-y-2">
-                <button onclick="openCurrentAlbumDriveLink()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition">
-                    <i class="fa-brands fa-google-drive text-base"></i>
-                    <span>เปิดอัลบั้มนี้บน Google Drive</span>
-                </button>
-                <button onclick="closeModal('modalDriveTutorial')" class="w-full py-2.5 text-xs text-slate-400 hover:text-slate-600 font-medium">
-                    ปิดหน้าต่างนี้
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- Save to Gallery Modal -->
     <div id="modalSaveToGallery" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -381,7 +349,7 @@
         </div>
     </div>
 
-    <!-- Share & QR Code Modal -->
+    <!-- Share & QR Code Modal (ปรับปรุงปุ่มคัดลอกและช่องคัดลอกเฉพาะลิงก์) -->
     <div id="modalShare" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white text-slate-800 w-full max-w-xl rounded-3xl p-6 shadow-2xl relative max-h-[92vh] overflow-y-auto space-y-4">
             <button onclick="closeModal('modalShare')" class="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1">
@@ -402,6 +370,7 @@
                 </div>
 
                 <div class="w-full flex-1 space-y-3">
+                    <!-- ช่องแสดงและคัดลอกเฉพาะลิงก์ -->
                     <div>
                         <label class="text-[11px] font-bold text-slate-600 block mb-1 flex items-center gap-1">
                             <i class="fa-solid fa-link text-sky-500"></i> ลิงก์อัลบั้ม (เฉพาะ URL):
@@ -428,6 +397,7 @@
                         </div>
                     </div>
 
+                    <!-- กล่องข้อความสำหรับคัดลอกไปส่งลูกค้า -->
                     <div class="relative">
                         <textarea id="shareFullMessageTextarea" readonly class="w-full h-32 bg-white border border-slate-300 rounded-xl p-3 text-xs text-slate-800 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none shadow-inner"></textarea>
                     </div>
@@ -473,14 +443,13 @@
 
     <!-- ================= APP LOGIC JAVASCRIPT ================= -->
     <script>
-        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhlpLWg8fRXpG2u9XniLsi1vN0trIKoUwNiSGxLpci4LVPVe2jMm1gq_IDD7gYa3dq/exec";
+        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNEBEEcyRP86BAt7aW-EINBUuL31l013Hm4vDO1siN7-RUC3384mG-xKteUKtRQPSN/exec";
         let googleScriptUrl = DEFAULT_SCRIPT_URL;
         let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
 
         let currentMode = 'admin';
         let isCustomerSharedLink = false;
         let currentAlbumId = '';
-        let currentAlbumFolderId = '';
         let albums = [];
         let photos = [];
         let isSelectMode = false;
@@ -525,50 +494,6 @@
             switchMode('admin');
             startGlobalTimer();
         };
-
-        function openDriveTutorialModal() {
-            openModal('modalDriveTutorial');
-        }
-
-        // ฟังก์ชันแก้ไขแล้วใช้งานได้ 100%: เปิดไปยังโฟลเดอร์ Google Drive ของอัลบั้มนั้นๆ โดยตรง
-        async function openCurrentAlbumDriveLink() {
-            let targetFolderId = currentAlbumFolderId;
-
-            // 1. ค้นหาในตัวแปรอัลบั้ม
-            const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
-            if (!targetFolderId && album && album.folderId) {
-                targetFolderId = album.folderId;
-            }
-
-            // 2. ค้นหาจากรูปภาพในอัลบั้ม
-            if (!targetFolderId && photos && photos.length > 0) {
-                const firstPhoto = photos.find(p => p.folderId);
-                if (firstPhoto) targetFolderId = firstPhoto.folderId;
-            }
-
-            // 3. หากยังไม่มี ID ให้สอบถามจาก Apps Script โดยตรง
-            if (!targetFolderId) {
-                const albumTitle = album ? album.title : currentAlbumId;
-                showToast('กำลังเชื่อมต่อไปยัง Google Drive...');
-                try {
-                    const res = await fetch(`${googleScriptUrl}?action=getPhotos&albumTitle=${encodeURIComponent(albumTitle)}&parentFolderId=${parentDriveFolderId}`);
-                    const data = await res.json();
-                    if (data.status === 'success' && data.folderId) {
-                        targetFolderId = data.folderId;
-                        currentAlbumFolderId = data.folderId;
-                    }
-                } catch (e) {
-                    console.log('Error fetching folderId dynamically', e);
-                }
-            }
-
-            // 4. เปิดเข้าสู่โฟลเดอร์ Google Drive ตรงๆ 100%
-            if (targetFolderId) {
-                window.open(`https://drive.google.com/drive/folders/${targetFolderId}`, '_blank');
-            } else {
-                alert('ไม่สามารถดึงลิงก์โฟลเดอร์ Google Drive ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง');
-            }
-        }
 
         // ================= TIMER & AUTO DELETE SYSTEM =================
         function startGlobalTimer() {
@@ -747,8 +672,6 @@
                         if (localMatch) {
                             driveAlbum.createdAt = localMatch.createdAt;
                             driveAlbum.expireDays = localMatch.expireDays;
-                            if (localMatch.folderId) driveAlbum.folderId = localMatch.folderId;
-                            if (localMatch.folderUrl) driveAlbum.folderUrl = localMatch.folderUrl;
                         } else {
                             driveAlbum.createdAt = new Date().toISOString();
                             driveAlbum.expireDays = 7;
@@ -774,8 +697,6 @@
                     if (data.status === 'success' && data.photos) {
                         localStorage.setItem(`sikram_photos_${album.id}`, JSON.stringify(data.photos));
                         
-                        if (data.folderId) album.folderId = data.folderId;
-                        
                         const coverImg = document.getElementById(`cover_img_${album.id}`);
                         const countBadge = document.getElementById(`count_badge_${album.id}`);
                         if (coverImg && data.photos.length > 0) {
@@ -789,7 +710,6 @@
                     console.log('Prefetch error for', album.title);
                 }
             }
-            saveAlbums();
         }
 
         async function fetchPhotosFromDrive(albumTitle) {
@@ -798,16 +718,6 @@
                 const data = await res.json();
                 if (data.status === 'success' && data.photos) {
                     photos = data.photos;
-                    
-                    if (data.folderId) {
-                        currentAlbumFolderId = data.folderId;
-                        let album = albums.find(a => a.id === currentAlbumId || a.title === albumTitle);
-                        if (album) {
-                            album.folderId = data.folderId;
-                            if (data.folderUrl) album.folderUrl = data.folderUrl;
-                            saveAlbums();
-                        }
-                    }
                     saveCurrentPhotos();
                 }
             } catch (err) {
@@ -927,8 +837,7 @@
         async function openSingleAlbumAdmin(albumId) {
             currentAlbumId = albumId;
             const album = albums.find(a => a.id === albumId) || { title: albumId, sub: '' };
-            if (album.folderId) currentAlbumFolderId = album.folderId;
-
+            
             document.getElementById('adminActiveTitle').innerText = album.title;
             document.getElementById('adminActiveSub').innerText = album.sub || 'รายละเอียดอัลบั้ม';
             
@@ -957,9 +866,8 @@
             const emptyState = document.getElementById('emptyCustomerState');
             const loadingBanner = document.getElementById('customerLoadingBanner');
             
-            const currentAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId) || { id: currentAlbumId, expireDays: 7 };
+            const currentAlbum = albums.find(a => a.id === currentAlbumId) || { id: currentAlbumId, expireDays: 7 };
             const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
-            if (currentAlbum && currentAlbum.folderId) currentAlbumFolderId = currentAlbum.folderId;
 
             document.getElementById('customerAlbumTitle').innerText = albumTitle;
             document.getElementById('customerAlbumSub').innerText = (currentAlbum && currentAlbum.sub) ? currentAlbum.sub : 'รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว';
@@ -1339,8 +1247,6 @@
                         const percentEl = document.getElementById(`percent_${entry.tempId}`);
                         if (percentEl) percentEl.innerText = '100%';
 
-                        if (result.file.folderId) currentAlbumFolderId = result.file.folderId;
-
                         setTimeout(() => {
                             entry.card.innerHTML = `
                                 <img src="${result.file.url}" class="w-full h-full object-cover">
@@ -1440,8 +1346,6 @@
             closeModal('modalCreateAlbum');
             showToast(`กำลังสร้างอัลบั้มบน Google Drive...`);
 
-            let folderId = null;
-            let folderUrl = null;
             try {
                 const res = await fetch(googleScriptUrl, {
                     method: 'POST',
@@ -1455,8 +1359,6 @@
 
                 const data = await res.json();
                 if (data.status === 'success') {
-                    if (data.folderId) folderId = data.folderId;
-                    if (data.folderUrl) folderUrl = data.folderUrl;
                     showToast(`สร้างอัลบั้ม "${title}" บน Google Drive สำเร็จ!`);
                 }
             } catch (err) {
@@ -1468,8 +1370,6 @@
                 title: title,
                 sub: sub,
                 expireDays: expireDays,
-                folderId: folderId,
-                folderUrl: folderUrl,
                 createdAt: new Date().toISOString()
             };
 
@@ -1516,18 +1416,22 @@
         }
 
         function openShareModalCurrent() {
+            // ดึงข้อมูลอัลบั้มที่เลือกในปัจจุบันให้อย่างถูกต้อง
             const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
             const albumTitle = album ? album.title : currentAlbumId;
             const shareUrl = `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(albumTitle)}`;
 
+            // กำหนดลิงก์ใส่ช่องเฉพาะ URL
             document.getElementById('shareOnlyUrlInput').value = shareUrl;
 
+            // คำนวณเวลาหมดอายุที่ถูกต้อง
             let info = getCountdownInfo(album);
             let expireInfo = `อัลบั้มนี้จะถูกลบอัตโนมัติภายใน ${info.text}`;
             if (!album || album.expireDays === 0) {
                 expireInfo = "อัลบั้มนี้ไม่มีกำหนดลบอัตโนมัติ";
             }
 
+            // แทรกตัวแปรลงในข้อความส่งลูกค้า
             let customTemplate = localStorage.getItem('sikram_share_template') || DEFAULT_SHARE_TEMPLATE;
             let finalMsg = customTemplate.replace('{LINK}', shareUrl).replace('{EXPIRE_INFO}', expireInfo);
 
