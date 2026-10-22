@@ -113,7 +113,7 @@
                 <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
                     <div>
                         <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
-                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none>
+                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
@@ -285,15 +285,15 @@
 
     <!-- ================= MODALS & POPUPS ================= -->
 
-    <!-- Save to Gallery Modal -->
+    <!-- Save to Gallery Modal (แก้ไขปัญหาระบบป๊อบอัปค้าง และเปิดไม่ได้ในรอบถัดไป) -->
     <div id="modalSaveToGallery" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="bg-white text-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-2">
                 <div>
                     <h3 class="text-base font-bold text-slate-900">ดาวน์โหลดรูปที่เลือก</h3>
-                    <p id="saveModalPhotoCount" class="text-xs text-slate-500">2 รูป</p>
+                    <p id="saveModalPhotoCount" class="text-xs text-slate-500">1 รูป</p>
                 </div>
-                <button onclick="closeModal('modalSaveToGallery')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200">
+                <button onclick="closeSaveGalleryModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200">
                     <i class="fa-solid fa-xmark text-sm"></i>
                 </button>
             </div>
@@ -316,14 +316,14 @@
             </div>
 
             <!-- Action Button -->
-            <button id="btnTriggerSaveGallery" onclick="executeGallerySave()" class="w-full py-3.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all">
+            <button id="btnTriggerSaveGallery" class="w-full py-3.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all">
                 <i id="btnSaveIcon" class="fa-solid fa-download text-sm"></i>
-                <span id="btnSaveText">บันทึก 2 รูปลงเครื่อง</span>
+                <span id="btnSaveText">บันทึก 1 รูปลงเครื่อง</span>
             </button>
 
             <!-- Cancel Button -->
             <div id="saveModalCancelContainer" class="text-center pt-1">
-                <button onclick="closeModal('modalSaveToGallery')" class="text-xs text-slate-400 hover:text-slate-600 font-medium">
+                <button onclick="closeSaveGalleryModal()" class="text-xs text-slate-400 hover:text-slate-600 font-medium">
                     หยุดดาวน์โหลด
                 </button>
             </div>
@@ -435,7 +435,7 @@
 
     <!-- ================= APP LOGIC JAVASCRIPT ================= -->
     <script>
-        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwHA42mwUK4swJGF_G2hvPtf4x5JmBzw8nqIeW_mU_p_aCty6GaoxqljF7RemvmmQTy/exec";
+        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec";
         let googleScriptUrl = DEFAULT_SCRIPT_URL;
         let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
 
@@ -799,7 +799,7 @@
         }
 
 
-        // ================= SAVE TO GALLERY PROCESS (ปรับปรุงการเรียกระบบ Share Sheet ให้เด้ง 100%) =================
+        // ================= SAVE TO GALLERY PROCESS (ปรับปรุงปุ่มดาวน์โหลดให้เด้งได้ทุกรอบ 100%) =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -832,12 +832,13 @@
             const btnIcon = document.getElementById('btnSaveIcon');
             const cancelBtn = document.getElementById('saveModalCancelContainer');
 
+            // รีเซ็ตการตั้งค่าของ Modal และปุ่ม ให้พร้อมสำหรับรอบการดาวน์โหลดใหม่เสมอ
             banner.className = "bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 space-y-2";
             bannerText.className = "text-xs font-semibold text-amber-900 flex items-center gap-2";
             bannerText.innerHTML = `<i id="saveModalIcon" class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> <span>รูปพร้อมแล้ว แตะปุ่มด้านล่างเพื่อบันทึกลงเครื่อง</span>`;
             
-            btn.className = "w-full py-3.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all";
-            btn.onclick = executeGallerySave;
+            btn.className = "w-full py-3.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer";
+            btn.onclick = executeGallerySave; // ผูกฟังก์ชันบันทึกกลับคืนมาทุกรอบ
             btnText.innerText = `บันทึก ${count} รูปลงเครื่อง`;
             btnIcon.className = "fa-solid fa-download text-sm";
 
@@ -846,27 +847,22 @@
             openModal('modalSaveToGallery');
         }
 
-        // แปลงภาพเป็น Base64 Data URL เพื่อแก้ปัญหา CORS ชัวร์ 100%
-        function imageToBlob(url) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.crossOrigin = 'Anonymous';
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    canvas.toBlob((blob) => {
-                        resolve(blob || null);
-                    }, 'image/jpeg', 0.95);
-                };
-                img.onerror = () => resolve(null);
-                img.src = url;
-            });
+        function closeSaveGalleryModal() {
+            photosToSaveToGallery = [];
+            closeModal('modalSaveToGallery');
         }
 
-        // ประมวลผลการบันทึกภาพพร้อม Share Sheet
+        // แปลงภาพเป็น Blob โดยตรง เพื่อลดการดึงจากเซิร์ฟเวอร์ซ้ำ
+        async function fetchImageBlob(url) {
+            try {
+                const res = await fetch(url);
+                return await res.blob();
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // ประมวลผลและเด้ง Share Sheet ดาวน์โหลดรูปภาพ
         async function executeGallerySave() {
             if (photosToSaveToGallery.length === 0) return;
 
@@ -891,14 +887,14 @@
                 const filesArray = [];
                 for (let i = 0; i < photosToSaveToGallery.length; i++) {
                     const p = photosToSaveToGallery[i];
-                    const blob = await imageToBlob(p.url);
+                    const blob = await fetchImageBlob(p.url);
                     if (blob) {
                         const file = new File([blob], p.name || `Studio_Photo_${i+1}.jpg`, { type: 'image/jpeg' });
                         filesArray.push(file);
                     }
                 }
 
-                // สั่งเด้ง Native iOS Share Sheet ตรงนี้
+                // สั่งเด้ง Native iOS Share Sheet ตรงนี้ทันที
                 if (filesArray.length > 0 && navigator.canShare && navigator.canShare({ files: filesArray })) {
                     await navigator.share({
                         files: filesArray,
@@ -907,17 +903,23 @@
                     sharedSuccessfully = true;
                 }
             } catch (err) {
-                console.log('Share closed or unsupported fallback');
+                console.log('User closed share window or browser fallback triggered');
             }
 
-            // ถ้าไม่ผ่าน Web Share API ให้สั่งเปิดลิงก์ดาวน์โหลดตรงเข้าอัลบั้มแทน
+            // ถ้า Web Share ไม่ผ่าน ให้เปิดรูปในแท็บเพื่อบันทึกตรง
             if (!sharedSuccessfully) {
                 photosToSaveToGallery.forEach((photo) => {
-                    window.open(photo.downloadUrl || photo.url, '_blank');
+                    const a = document.createElement('a');
+                    a.href = photo.downloadUrl || photo.url;
+                    a.download = photo.name || 'studio_photo.jpg';
+                    a.target = '_blank';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
                 });
             }
 
-            // ปรับเปลี่ยนสถานะ Modal เป็นสำเร็จ
+            // ปรับเปลี่ยนสถานะ Modal เป็นสำเร็จ และเตรียมปุ่มปิด
             photosToSaveToGallery.forEach(p => p.downloaded = true);
             saveCurrentPhotos();
 
@@ -925,13 +927,14 @@
             bannerText.className = "text-xs font-semibold text-emerald-900 flex items-center gap-2";
             bannerText.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> <span>บันทึกครบ ${count} รูปแล้ว</span>`;
 
-            btn.className = "w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all";
+            btn.className = "w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer";
             btnText.innerText = "ปิด";
             btnIcon.className = "hidden";
-            btn.onclick = () => { closeModal('modalSaveToGallery'); };
+            btn.onclick = closeSaveGalleryModal; // สลับเป็นปุ่มปิดในขั้นตอนสุดท้ายเท่านั้น
 
             document.getElementById('saveModalCancelContainer').classList.add('hidden');
 
+            // อัปเดต UI หน้าแกลเลอรีให้ขึ้นติ๊กถูกสีเขียวทับบนรูป
             document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
             renderPhotoGridItems();
         }
