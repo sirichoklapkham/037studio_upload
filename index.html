@@ -341,7 +341,7 @@
 
             <div class="bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 space-y-2">
                 <p class="text-xs font-semibold text-amber-900 flex items-center gap-1.5">
-                    <i class="fa-solid fa-circle-check text-emerald-600"></i> รูปพร้อมแล้ว แตะปุ่มด้านล่างเพื่อบันทึกลงเครื่อง
+                    <i class="fa-solid fa-circle-check text-emerald-600"></i> รูปพร้อมแล้ว แตะปุ่มด้านล่างเพื่อบันทึกลงแกลเลอรี
                 </p>
                 <div class="w-full bg-amber-200/50 rounded-full h-1.5 overflow-hidden">
                     <div class="bg-navy-800 h-1.5 rounded-full w-full"></div>
@@ -349,7 +349,7 @@
             </div>
 
             <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 text-xs space-y-1">
-                <p class="font-bold text-slate-800">เมื่อหน้าต่างเด้งขึ้นมา เลือก "บันทึกรูปภาพ" (Save Image)</p>
+                <p class="font-bold text-slate-800">เมื่อหน้าต่างเด้งขึ้นมา เลือก "บันทึกภาพ" (Save Image)</p>
                 <p class="text-[11px] text-slate-500">รูปภาพจะถูกบันทึกลงในแกลเลอรีรูปภาพบนมือถือของคุณทันที</p>
             </div>
 
@@ -360,7 +360,7 @@
 
             <div class="text-center pt-1">
                 <button onclick="closeModal('modalSaveToGallery')" class="text-xs text-slate-400 hover:text-slate-600 font-medium">
-                    หยุดดาวน์โหลด
+                    ยกเลิก
                 </button>
             </div>
         </div>
@@ -432,7 +432,7 @@
 
     <!-- ================= APP LOGIC JAVASCRIPT ================= -->
     <script>
-        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec";
+        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwHA42mwUK4swJGF_G2hvPtf4x5JmBzw8nqIeW_mU_p_aCty6GaoxqljF7RemvmmQTy/exec";
         let googleScriptUrl = DEFAULT_SCRIPT_URL;
         let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
 
@@ -454,22 +454,18 @@
             setupDragAndDrop();
 
             if (albumParam) {
-                // เมื่อลูกค้าเปิดผ่านลิงก์ของทางร้าน -> แสดงอัลบั้มของลูกค้าโดยตรงทันที
                 isCustomerSharedLink = true;
                 currentAlbumId = decodeURIComponent(albumParam);
                 
                 switchMode('customer');
                 
-                // ซ่อนสวิตช์แอดมิน เพื่อป้องกันไม่ให้ลูกค้าสลับไปหน้าแอดมิน
                 const viewSwitcher = document.getElementById('viewSwitcherContainer');
                 if (viewSwitcher) viewSwitcher.classList.add('hidden');
                 
-                // ดึงรูปสดจาก Google Drive เข้าอัลบั้มลูกค้าโดยตรง
                 await renderCustomerGallery();
                 return;
             }
 
-            // ถ้าไม่มีพารามิเตอร์อัลบั้ม -> เข้าหน้าแอดมินตามปกติ
             await fetchAlbumsFromDrive();
             switchMode('admin');
         };
@@ -526,7 +522,6 @@
             if (savedAlbums) albums = JSON.parse(savedAlbums);
         }
 
-        // ดึงรายการอัลบั้มจาก Google Drive
         async function fetchAlbumsFromDrive() {
             try {
                 const res = await fetch(`${googleScriptUrl}?action=getAlbums&parentFolderId=${parentDriveFolderId}`);
@@ -541,7 +536,6 @@
             }
         }
 
-        // ดึงรายการรูปภาพจาก Google Drive
         async function fetchPhotosFromDrive(albumTitle) {
             try {
                 const res = await fetch(`${googleScriptUrl}?action=getPhotos&albumTitle=${encodeURIComponent(albumTitle)}&parentFolderId=${parentDriveFolderId}`);
@@ -553,12 +547,6 @@
             } catch (err) {
                 console.log('Error fetching photos from drive', err);
             }
-        }
-
-        function loadPhotosForCurrentAlbum() {
-            if (!currentAlbumId) return;
-            const saved = localStorage.getItem(`sikram_photos_${currentAlbumId}`);
-            photos = saved ? JSON.parse(saved) : [];
         }
 
         function saveCurrentPhotos() {
@@ -704,7 +692,6 @@
             document.getElementById('customerAlbumTitle').innerText = albumTitle;
             document.getElementById('customerAlbumSub').innerText = (currentAlbum && currentAlbum.sub) ? currentAlbum.sub : 'รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว';
 
-            // คำนวณวันและเวลาหมดอายุ (7 วันนับจากวันที่สร้าง)
             let expireDateStr = "7 วันนับจากวันถ่ายภาพ";
             if (currentAlbum && currentAlbum.createdAt) {
                 const created = new Date(currentAlbum.createdAt);
@@ -717,7 +704,6 @@
             }
             document.getElementById('customerExpireText').innerText = expireDateStr;
 
-            // แสดงสถานะกำลังโหลด
             loadingBanner.classList.remove('hidden');
             grid.innerHTML = `
                 <div class="col-span-full py-12 text-center text-slate-400 text-xs space-y-2">
@@ -726,7 +712,6 @@
                 </div>
             `;
 
-            // ดึงรูปถ่ายเฉพาะอัลบั้มนี้สดๆ จาก Google Drive
             await fetchPhotosFromDrive(albumTitle);
             loadingBanner.classList.add('hidden');
 
@@ -773,7 +758,7 @@
         }
 
 
-        // ================= SAVE TO GALLERY =================
+        // ================= SAVE TO GALLERY (เปิด Native Share Sheet ให้กดบันทึกภาพลงเครื่องโดยตรง) =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -808,13 +793,14 @@
             showToast('กำลังเตรียมรูปภาพบันทึกลงแกลเลอรี...');
 
             try {
+                // ใช้ Native Share Sheet ของอุปกรณ์มือถือ เพื่อให้กด "บันทึกภาพ" (Save Image) ลงแกลเลอรีโดยตรง
                 if (navigator.canShare) {
                     const filesArray = [];
 
                     for (let i = 0; i < photosToSaveToGallery.length; i++) {
                         const p = photosToSaveToGallery[i];
                         const blob = await fetch(p.url).then(r => r.blob());
-                        const file = new File([blob], p.name || `Studio_Photo_${i+1}.jpg`, { type: blob.type || 'image/jpeg' });
+                        const file = new File([blob], p.name || `Studio_Photo_${i+1}.jpg`, { type: 'image/jpeg' });
                         filesArray.push(file);
                     }
 
@@ -822,20 +808,22 @@
                         await navigator.share({
                             files: filesArray,
                             title: 'บันทึกรูปภาพสตูดิโอ',
-                            text: 'กดเลือกลับ/บันทึกรูปภาพเพื่อเซฟลงแกลเลอรี'
+                            text: 'เลือก "บันทึกภาพ" เพื่อเซฟรูปภาพลงแกลเลอรี'
                         });
 
                         photosToSaveToGallery.forEach(p => p.downloaded = true);
                         saveCurrentPhotos();
                         closeModal('modalSaveToGallery');
                         showToast('บันทึกลงแกลเลอรีเรียบร้อยแล้ว!');
+                        document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
                         return;
                     }
                 }
             } catch (err) {
-                console.log('Fallback to direct download');
+                console.log('User canceled or fallback to direct download');
             }
 
+            // Fallback ดาวน์โหลดตรงลงเครื่อง
             photosToSaveToGallery.forEach((photo, idx) => {
                 setTimeout(() => {
                     const a = document.createElement('a');
@@ -853,6 +841,7 @@
             saveCurrentPhotos();
             closeModal('modalSaveToGallery');
             showToast('ดาวน์โหลดรูปภาพลงเครื่องเรียบร้อย!');
+            document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
         }
 
 
@@ -875,7 +864,6 @@
                 text.innerText = "เลือกรูปภาพ";
                 btnBatch.classList.add('hidden');
                 
-                // ล้างค่าที่เลือกและอัปเดตเฉพาะ UI วงกลมติ๊กเลือก โดยไม่ดึงข้อมูลใหม่
                 selectedPhotoIds.forEach(id => {
                     const checkBtn = document.getElementById(`check_${id}`);
                     if (checkBtn) {
@@ -892,7 +880,7 @@
             else openLightbox(photoId);
         }
 
-        // ปรับแก้ toggleSelectPhoto เพื่อให้อัปเดต UI ตรงการ์ดรูปภาพทันที โดยไม่รีโหลดใหม่
+        // ปรับแก้เพื่อให้อัปเดต UI เฉพาะการ์ดนั้นๆ ทันที ไม่โหลดแอป/ดึงข้อมูลใหม่
         function toggleSelectPhoto(photoId, event) {
             if (event) event.stopPropagation();
 
@@ -961,7 +949,6 @@
             e.target.value = '';
         }
 
-        // ================= อัปโหลดและแสดงรูปภาพพรีวิวพร้อมกันทั้งชุดทันที =================
         async function uploadFilesProcess(files) {
             const grid = document.getElementById('adminPhotoGrid');
             const currentAlbum = albums.find(a => a.id === currentAlbumId);
@@ -970,7 +957,6 @@
             const totalFiles = files.length;
             const fileEntries = [];
 
-            // 1. สร้างการ์ดภาพพรีวิวรอไว้ล่วงหน้าทันทีพร้อมกันทุกรูปที่ดึงมาอัปโหลด
             for (let i = 0; i < totalFiles; i++) {
                 const file = files[i];
                 const base64 = await readFileAsDataURL(file);
@@ -999,7 +985,6 @@
                 });
             }
 
-            // 2. เริ่มส่งไฟล์แยกตามการ์ดขึ้น Google Drive ในเบื้องหลัง
             for (let entry of fileEntries) {
                 let percent = 0;
                 const interval = setInterval(() => {
@@ -1082,13 +1067,29 @@
             });
         }
 
-        function deletePhoto(photoId) {
-            if (confirm('ต้องการลบรูปภาพนี้หรือไม่?')) {
+        // ================= สั่งลบรูปภาพรายไฟล์ใน Google Drive สดๆ =================
+        async function deletePhoto(photoId) {
+            if (confirm('ต้องการลบรูปภาพนี้ออกจาก Google Drive หรือไม่?')) {
+                showToast('กำลังลบรูปภาพใน Google Drive...');
+                
+                try {
+                    await fetch(googleScriptUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({
+                            action: 'deletePhoto',
+                            fileId: photoId
+                        })
+                    });
+                } catch (err) {
+                    console.log('Delete photo error', err);
+                }
+
                 photos = photos.filter(p => p.id !== photoId);
                 saveCurrentPhotos();
                 renderAdminPhotoList();
                 document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
-                showToast('ลบรูปภาพสำเร็จ');
+                showToast('ลบรูปภาพออกจาก Google Drive เรียบร้อย');
             }
         }
 
@@ -1133,14 +1134,34 @@
             await fetchAlbumsFromDrive();
         }
 
-        function deleteCurrentAlbum() {
-            if (confirm(`คุณแน่ใจหรือไม่ที่จะลบอัลบั้มนี้?`)) {
+        // ================= ลบทั้งอัลบั้มออกจาก Google Drive =================
+        async function deleteCurrentAlbum() {
+            if (confirm(`คุณแน่ใจหรือไม่ที่จะลบอัลบั้มนี้ออกจาก Google Drive?`)) {
+                showToast('กำลังลบอัลบั้มบน Google Drive...');
+
+                const currentAlbum = albums.find(a => a.id === currentAlbumId);
+                const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
+
+                try {
+                    await fetch(googleScriptUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({
+                            action: 'deleteAlbum',
+                            albumTitle: albumTitle,
+                            parentFolderId: parentDriveFolderId
+                        })
+                    });
+                } catch (err) {
+                    console.log('Delete album error', err);
+                }
+
                 albums = albums.filter(a => a.id !== currentAlbumId);
                 localStorage.removeItem(`sikram_photos_${currentAlbumId}`);
                 saveAlbums();
 
                 closeSingleAlbumAdmin();
-                showToast('ลบอัลบั้มเรียบร้อย');
+                showToast('ลบอัลบั้มออกจาก Google Drive เรียบร้อย');
             }
         }
 
