@@ -113,7 +113,7 @@
                 <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
                     <div>
                         <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
-                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none>
+                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
@@ -522,6 +522,7 @@
             if (savedAlbums) albums = JSON.parse(savedAlbums);
         }
 
+        // ================= ดึงรายการอัลบั้ม + ดึงรูปภาพเบื้องหลังล่วงหน้าเพื่อแสดงรูปปก =================
         async function fetchAlbumsFromDrive() {
             try {
                 const res = await fetch(`${googleScriptUrl}?action=getAlbums&parentFolderId=${parentDriveFolderId}`);
@@ -529,10 +530,38 @@
                 if (data.status === 'success' && data.albums) {
                     albums = data.albums;
                     saveAlbums();
-                    if (currentMode === 'admin') renderAdminDashboard();
+                    if (currentMode === 'admin') {
+                        renderAdminDashboard();
+                        // ดึงรูปภาพเบื้องหลังสำหรับทุกอัลบั้มมาแสดงปกทันที
+                        prefetchAllAlbumPhotos();
+                    }
                 }
             } catch (err) {
                 console.log('Error fetching albums from drive', err);
+            }
+        }
+
+        async function prefetchAllAlbumPhotos() {
+            for (let album of albums) {
+                try {
+                    const res = await fetch(`${googleScriptUrl}?action=getPhotos&albumTitle=${encodeURIComponent(album.title)}&parentFolderId=${parentDriveFolderId}`);
+                    const data = await res.json();
+                    if (data.status === 'success' && data.photos) {
+                        localStorage.setItem(`sikram_photos_${album.id}`, JSON.stringify(data.photos));
+                        
+                        // อัปเดต UI รูปปกและจำนวนรูปของการ์ดอัลบั้มนี้ทันที
+                        const coverImg = document.getElementById(`cover_img_${album.id}`);
+                        const countBadge = document.getElementById(`count_badge_${album.id}`);
+                        if (coverImg && data.photos.length > 0) {
+                            coverImg.src = data.photos[0].url;
+                        }
+                        if (countBadge) {
+                            countBadge.innerText = `${data.photos.length} รูป`;
+                        }
+                    }
+                } catch (e) {
+                    console.log('Prefetch error for', album.title);
+                }
             }
         }
 
@@ -625,14 +654,14 @@
                 card.innerHTML = `
                     <div onclick="openSingleAlbumAdmin('${album.id}')">
                         <div class="relative h-40 overflow-hidden bg-navy-950">
-                            <img src="${coverPhoto}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                            <img id="cover_img_${album.id}" src="${coverPhoto}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                             <div class="absolute inset-0 bg-gradient-to-t from-navy-950 via-transparent to-transparent"></div>
                             
                             <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] text-amber-400 border border-slate-700 flex items-center gap-1 font-semibold">
                                 <i class="fa-regular fa-clock"></i> 7 วัน
                             </div>
 
-                            <div class="absolute bottom-3 right-3 bg-sky-600 text-white px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow">
+                            <div id="count_badge_${album.id}" class="absolute bottom-3 right-3 bg-sky-600 text-white px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow">
                                 ${albumPhotos.length} รูป
                             </div>
                         </div>
@@ -758,7 +787,7 @@
         }
 
 
-        // ================= SAVE TO GALLERY (เปิด Native Share Sheet ให้กดบันทึกภาพลงเครื่องโดยตรง) =================
+        // ================= SAVE TO GALLERY (เรียก Share Sheet ให้ขึ้นปุ่ม "บันทึกภาพ") =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -793,7 +822,7 @@
             showToast('กำลังเตรียมรูปภาพบันทึกลงแกลเลอรี...');
 
             try {
-                // ใช้ Native Share Sheet ของอุปกรณ์มือถือ เพื่อให้กด "บันทึกภาพ" (Save Image) ลงแกลเลอรีโดยตรง
+                // เรียกใช้ Native Share Sheet บน iOS Safari เพื่อแสดงหน้าต่าง "บันทึกภาพ"
                 if (navigator.canShare) {
                     const filesArray = [];
 
@@ -823,7 +852,7 @@
                 console.log('User canceled or fallback to direct download');
             }
 
-            // Fallback ดาวน์โหลดตรงลงเครื่อง
+            // Fallback กรณีไม่รองรับ Web Share
             photosToSaveToGallery.forEach((photo, idx) => {
                 setTimeout(() => {
                     const a = document.createElement('a');
@@ -880,7 +909,6 @@
             else openLightbox(photoId);
         }
 
-        // ปรับแก้เพื่อให้อัปเดต UI เฉพาะการ์ดนั้นๆ ทันที ไม่โหลดแอป/ดึงข้อมูลใหม่
         function toggleSelectPhoto(photoId, event) {
             if (event) event.stopPropagation();
 
@@ -1067,7 +1095,7 @@
             });
         }
 
-        // ================= สั่งลบรูปภาพรายไฟล์ใน Google Drive สดๆ =================
+        // ================= สั่งลบรูปภาพใน Google Drive =================
         async function deletePhoto(photoId) {
             if (confirm('ต้องการลบรูปภาพนี้ออกจาก Google Drive หรือไม่?')) {
                 showToast('กำลังลบรูปภาพใน Google Drive...');
@@ -1134,7 +1162,7 @@
             await fetchAlbumsFromDrive();
         }
 
-        // ================= ลบทั้งอัลบั้มออกจาก Google Drive =================
+        // ================= สั่งลบทั้งอัลบั้มใน Google Drive =================
         async function deleteCurrentAlbum() {
             if (confirm(`คุณแน่ใจหรือไม่ที่จะลบอัลบั้มนี้ออกจาก Google Drive?`)) {
                 showToast('กำลังลบอัลบั้มบน Google Drive...');
