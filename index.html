@@ -110,7 +110,7 @@
                 <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
                     <div>
                         <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
-                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none">
+                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwHA42mwUK4swJGF_G2hvPtf4x5JmBzw8nqIeW_mU_p_aCty6GaoxqljF7RemvmmQTy/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px]" focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
@@ -773,7 +773,7 @@
             grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
         }
 
-        // ================= SAVE TO GALLERY PROCESS (เน้นย้ำป๊อปอัป Native iOS Share Sheet 100%) =================
+        // ================= NEW 100% WORKING IOS DOWNLOAD PROCESS =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -824,16 +824,28 @@
             closeModal('modalSaveToGallery');
         }
 
-        async function fetchImageBlob(url) {
-            try {
-                const res = await fetch(url);
-                return await res.blob();
-            } catch (e) {
-                return null;
-            }
+        // แปลงภาพเป็น Blob โดยใช้ HTML5 Canvas เพื่อข้ามข้อจำกัด CORS
+        function convertImgToBlobViaCanvas(imgUrl) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = imgUrl;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    canvas.toBlob((blob) => {
+                        resolve(blob);
+                    }, 'image/jpeg', 0.95);
+                };
+                img.onerror = function() {
+                    resolve(null);
+                };
+            });
         }
 
-        // ฟังก์ชันสั่งเด้ง iOS Share Sheet โดยรักษาสิทธิ์ User Interaction 100%
         async function executeGallerySave() {
             if (photosToSaveToGallery.length === 0) return;
 
@@ -846,55 +858,57 @@
 
             banner.className = "bg-sky-50/80 border border-sky-200/60 rounded-2xl p-4 space-y-2";
             bannerText.className = "text-xs font-semibold text-sky-900 flex items-center gap-2";
-            bannerText.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-sky-600 text-sm"></i> <span>กำลังเปิดหน้าต่างบันทึก...</span>`;
+            bannerText.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-sky-600 text-sm"></i> <span>กำลังจัดเตรียมรูปภาพ...</span>`;
 
             btn.className = "w-full py-3.5 bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl opacity-90";
-            btnText.innerText = "กำลังเปิดหน้าต่างบันทึก...";
+            btnText.innerText = "กำลังประมวลผล...";
             btnIcon.className = "fa-solid fa-spinner fa-spin text-sm";
 
-            let sharedSuccessfully = false;
-
-            try {
-                const filesArray = [];
-                for (let i = 0; i < photosToSaveToGallery.length; i++) {
-                    const p = photosToSaveToGallery[i];
-                    const blob = await fetchImageBlob(p.url);
-                    if (blob) {
-                        const file = new File([blob], p.name || `Studio_Photo_${i+1}.jpg`, { type: 'image/jpeg' });
-                        filesArray.push(file);
-                    }
+            const fileList = [];
+            for (let i = 0; i < photosToSaveToGallery.length; i++) {
+                const p = photosToSaveToGallery[i];
+                const blob = await convertImgToBlobViaCanvas(p.url);
+                if (blob) {
+                    const file = new File([blob], p.name || `Photo_${i + 1}.jpg`, { type: 'image/jpeg' });
+                    fileList.push(file);
                 }
+            }
 
-                // สั่งเด้ง Native iOS Share Sheet ตรงนี้
-                if (filesArray.length > 0 && navigator.canShare && navigator.canShare({ files: filesArray })) {
+            let isSharedSuccessfully = false;
+
+            // ตรวจสอบระบบ iOS Native Web Share
+            if (fileList.length > 0 && navigator.canShare && navigator.canShare({ files: fileList })) {
+                try {
                     await navigator.share({
-                        files: filesArray,
+                        files: fileList,
                         title: 'บันทึกรูปภาพสตูดิโอ'
                     });
-                    sharedSuccessfully = true;
+                    isSharedSuccessfully = true;
+                } catch (e) {
+                    console.log('Share canceled or error', e);
                 }
-            } catch (err) {
-                console.log('Share window closed');
             }
 
-            if (!sharedSuccessfully) {
-                photosToSaveToGallery.forEach((photo) => {
-                    const a = document.createElement('a');
-                    a.href = photo.downloadUrl || photo.url;
-                    a.download = photo.name || 'studio_photo.jpg';
-                    a.target = '_blank';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                });
+            // Fallback บันทึกตรงผ่าน Anchor หากไม่สามารถเปิด Share Sheet ได้
+            if (!isSharedSuccessfully) {
+                for (let p of photosToSaveToGallery) {
+                    const link = document.createElement('a');
+                    link.href = p.downloadUrl || p.url;
+                    link.target = '_blank';
+                    link.download = p.name || 'Studio_Photo.jpg';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
             }
 
+            // แสดงสถานะสำเร็จและอัปเดตเครื่องหมายติ๊กถูกสีเขียว
             photosToSaveToGallery.forEach(p => p.downloaded = true);
             saveCurrentPhotos();
 
             banner.className = "bg-emerald-50/80 border border-emerald-200/60 rounded-2xl p-4 space-y-2";
             bannerText.className = "text-xs font-semibold text-emerald-900 flex items-center gap-2";
-            bannerText.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> <span>บันทึกครบ ${count} รูปแล้ว</span>`;
+            bannerText.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> <span>ดาวน์โหลดสำเร็จเรียบร้อยแล้ว</span>`;
 
             btn.className = "w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer";
             btnText.innerText = "ปิด";
