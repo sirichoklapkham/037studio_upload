@@ -254,8 +254,6 @@
         </nav>
     </div>
 
-    <!-- ================= MODALS & POPUPS ================= -->
-
     <!-- Modal คำแนะนำเปิดใช้งาน Google Drive App -->
     <div id="modalDriveTutorial" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white text-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
@@ -445,7 +443,7 @@
         </div>
     </div>
 
-    <!-- Lightbox Modal (ปรับปรุงปุ่มเลื่อนและระบบปัด Swipe) -->
+    <!-- Lightbox Modal -->
     <div id="modalLightbox" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4 backdrop-blur-md select-none">
         <div class="flex items-center justify-between text-white z-10">
             <span id="lightboxIndex" class="text-xs text-slate-400">1 / 1</span>
@@ -460,17 +458,14 @@
         </div>
 
         <div class="flex-1 flex items-center justify-between my-2 overflow-hidden relative" id="lightboxContainer">
-            <!-- ปุ่มสไลด์ซ้าย -->
             <button onclick="prevLightboxPhoto()" class="z-20 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition focus:outline-none backdrop-blur-sm">
                 <i class="fa-solid fa-chevron-left text-xl sm:text-2xl"></i>
             </button>
 
-            <!-- แสดงรูปภาพ -->
             <div class="flex-1 h-full flex items-center justify-center px-2">
                 <img id="lightboxImg" src="" class="max-h-full max-w-full object-contain rounded-lg shadow-2xl transition-transform duration-200">
             </div>
 
-            <!-- ปุ่มสไลด์ขวา -->
             <button onclick="nextLightboxPhoto()" class="z-20 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition focus:outline-none backdrop-blur-sm">
                 <i class="fa-solid fa-chevron-right text-xl sm:text-2xl"></i>
             </button>
@@ -503,7 +498,6 @@
         let isEditingShareMsg = false;
         let countdownTimerInterval = null;
 
-        // ตัวแปรรองรับการปัดหน้าจอ Swipe
         let touchStartX = 0;
         let touchEndX = 0;
 
@@ -580,11 +574,37 @@
             window.open(`https://drive.google.com/drive/search?q=${searchQuery}`, '_blank');
         }
 
-        // ================= TIMER & AUTO DELETE SYSTEM (แก้ไขปัญหาเวลาค้าง) =================
+        // ================= TIMER & AUTO DELETE SYSTEM (ปรับแก้ไขปัญหานับเวลาค้าง) =================
         function startGlobalTimer() {
             if (countdownTimerInterval) clearInterval(countdownTimerInterval);
             countdownTimerInterval = setInterval(updateAllCountdowns, 1000);
             updateAllCountdowns();
+        }
+
+        // ฟังก์ชันช่วยสกัด Date object จากชื่ออัลบั้ม (เช่น 037Studio_23.10.69_13:00)
+        function parseDateFromTitle(title) {
+            if (!title) return null;
+            // รูปแบบ regex จับกลุ่ม: วัน.เดือน.ปี2หลัก_ชั่วโมง:นาที
+            const match = title.match(/(\d{2})\.(\d{2})\.(\d{2})(?:_(\d{2}):(\d{2}))?/);
+            if (match) {
+                const day = parseInt(match[1], 10);
+                const month = parseInt(match[2], 10) - 1; // ใน JS เดือนเริ่มที่ 0
+                let year = parseInt(match[3], 10);
+                
+                // แปลงพ.ศ. 2 หลักเป็น ค.ศ. (เช่น 69 -> 2569 -> 2026)
+                if (year > 50) {
+                    year = (2500 + year) - 543;
+                } else {
+                    year = 2000 + year;
+                }
+
+                const hours = match[4] ? parseInt(match[4], 10) : 0;
+                const minutes = match[5] ? parseInt(match[5], 10) : 0;
+
+                const parsed = new Date(year, month, day, hours, minutes, 0);
+                if (!isNaN(parsed.getTime())) return parsed;
+            }
+            return null;
         }
 
         function getCountdownInfo(album) {
@@ -593,10 +613,21 @@
             }
 
             let expireDays = album.expireDays !== undefined ? parseFloat(album.expireDays) : 7;
-            
-            // หากไม่มี createdAt ให้ตั้งค่าใช้วันเวลาปัจจุบัน
-            let createdDate = album.createdAt ? new Date(album.createdAt) : new Date();
-            if (isNaN(createdDate.getTime())) {
+            let createdDate = null;
+
+            // 1. ลองใช้ createdAt ของอัลบั้มก่อน
+            if (album.createdAt) {
+                const temp = new Date(album.createdAt);
+                if (!isNaN(temp.getTime())) createdDate = temp;
+            }
+
+            // 2. หากไม่มี createdAt ให้ลองแกะวันที่และเวลาจากชื่ออัลบั้ม
+            if (!createdDate && album.title) {
+                createdDate = parseDateFromTitle(album.title);
+            }
+
+            // 3. หากยังไม่มี ใช้วันเวลาปัจจุบันแทน
+            if (!createdDate) {
                 createdDate = new Date();
             }
 
@@ -649,7 +680,7 @@
             }
 
             if (currentAlbumId && currentMode === 'customer') {
-                let curAlbum = albums.find(a => a.id === currentAlbumId) || { id: currentAlbumId, expireDays: 7 };
+                let curAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId) || { id: currentAlbumId, title: currentAlbumId, expireDays: 7 };
                 let custExpireEl = document.getElementById('customerExpireText');
                 if (custExpireEl) {
                     let info = getCountdownInfo(curAlbum);
@@ -761,8 +792,8 @@
                     data.albums.forEach(driveAlbum => {
                         let localMatch = albums.find(a => a.title === driveAlbum.title || a.id === driveAlbum.id);
                         if (localMatch) {
-                            driveAlbum.createdAt = localMatch.createdAt || driveAlbum.createdAt;
-                            driveAlbum.expireDays = localMatch.expireDays;
+                            driveAlbum.createdAt = driveAlbum.createdAt || localMatch.createdAt;
+                            driveAlbum.expireDays = localMatch.expireDays !== undefined ? localMatch.expireDays : 7;
                             if (localMatch.folderId) driveAlbum.folderId = localMatch.folderId;
                             if (localMatch.folderUrl) driveAlbum.folderUrl = localMatch.folderUrl;
                         } else {
@@ -968,7 +999,12 @@
             const emptyState = document.getElementById('emptyCustomerState');
             const loadingBanner = document.getElementById('customerLoadingBanner');
             
-            const currentAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId) || { id: currentAlbumId, expireDays: 7 };
+            // ดึงข้อมูลซิงค์อัลบั้มจากเซิร์ฟเวอร์เพื่อให้ได้ข้อมูลวันที่สร้างโฟลเดอร์จริง
+            if (albums.length === 0) {
+                await fetchAlbumsFromDrive();
+            }
+
+            const currentAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId) || { id: currentAlbumId, title: currentAlbumId, expireDays: 7 };
             const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
 
             document.getElementById('customerAlbumTitle').innerText = albumTitle;
@@ -1183,7 +1219,7 @@
             renderPhotoGridItems();
         }
 
-        // ================= SELECTION MODE & LIGHTBOX (เพิ่มระบบสไลด์ภาพแบบเสถียร) =================
+        // ================= SELECTION MODE & LIGHTBOX =================
         function toggleSelectMode() {
             isSelectMode = !isSelectMode;
             const btn = document.getElementById('btnSelectToggle');
@@ -1278,7 +1314,6 @@
             updateLightboxContent();
         }
 
-        // เพิ่มการเลื่อนรูปภาพด้วยระบบ Touch / Swipe บนจอมือถือ และปุ่มแป้นพิมพ์
         function setupLightboxSwipe() {
             const container = document.getElementById('lightboxContainer');
             if (!container) return;
@@ -1304,11 +1339,11 @@
 
         function handleSwipeGesture() {
             const swipeDistance = touchEndX - touchStartX;
-            if (Math.abs(swipeDistance) > 40) { // ต้องเลื่อนมากกว่า 40px
+            if (Math.abs(swipeDistance) > 40) {
                 if (swipeDistance < 0) {
-                    nextLightboxPhoto(); // ปัดซ้าย ไปรูปถัดไป
+                    nextLightboxPhoto();
                 } else {
-                    prevLightboxPhoto(); // ปัดขวา ไปรูปก่อนหน้า
+                    prevLightboxPhoto();
                 }
             }
         }
@@ -1488,7 +1523,6 @@
             }
         }
 
-        // ================= สร้างชื่ออัลบั้มให้อัตโนมัติ (เช่น 037Studio_23.10.69_13:00 หรือ 13:30) =================
         function openCreateAlbumModal() {
             const now = new Date();
             const day = String(now.getDate()).padStart(2, '0');
@@ -1499,7 +1533,6 @@
             const minutes = now.getMinutes();
             let formattedTime = "";
 
-            // หากเกิน 30 นาที ให้ตั้งเวลาเป็น :30
             if (minutes < 30) {
                 formattedTime = `${String(hours).padStart(2, '0')}:00`;
             } else {
