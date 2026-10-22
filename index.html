@@ -543,9 +543,9 @@
             openModal('modalDriveTutorial');
         }
 
+        // ฟังก์ชันแก้ไขเปิดเข้า Google Drive ในเบราว์เซอร์โดยตรง
         function openCurrentAlbumDriveLink() {
             const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
-            const albumTitle = album ? album.title : currentAlbumId;
 
             if (album && album.folderUrl) {
                 window.open(album.folderUrl, '_blank');
@@ -562,39 +562,34 @@
                     window.open(`https://drive.google.com/drive/folders/${firstPhoto.folderId}`, '_blank');
                     return;
                 }
-                if (firstPhoto.url) {
-                    const match = firstPhoto.url.match(/id=([a-zA-Z0-9_-]+)/);
-                    if (match && match[1]) {
-                        window.open(`https://drive.google.com/file/d/${match[1]}/view`, '_blank');
-                        return;
-                    }
-                }
             }
 
-            const searchQuery = encodeURIComponent(`mimeType = 'application/vnd.google-apps.folder' and name = '${albumTitle}'`);
-            window.open(`https://drive.google.com/drive/search?q=${searchQuery}`, '_blank');
+            // หากไม่มี Folder ID ย่อย ให้เปิดเข้าโฟลเดอร์ Google Drive หลักของร้านทันที
+            if (parentDriveFolderId) {
+                window.open(`https://drive.google.com/drive/folders/${parentDriveFolderId}`, '_blank');
+                return;
+            }
+
+            window.open(`https://drive.google.com/drive/my-drive`, '_blank');
         }
 
-        // ================= TIMER & AUTO DELETE SYSTEM (FIXED FOR MOBILE / EXPIRE DAYS) =================
+        // ================= TIMER & AUTO DELETE SYSTEM =================
         function startGlobalTimer() {
             if (countdownTimerInterval) clearInterval(countdownTimerInterval);
             countdownTimerInterval = setInterval(updateAllCountdowns, 1000);
             updateAllCountdowns();
         }
 
-        // ฟังก์ชันแปลงวันที่ที่ปลอดภัยกับ iOS/Safari 100%
         function safeParseDate(dateInput) {
             if (!dateInput) return null;
             if (dateInput instanceof Date) return isNaN(dateInput.getTime()) ? null : dateInput;
 
             let str = String(dateInput).trim();
             
-            // ลองพาร์สแบบ ISO Standard ที่ Safari รองรับ
             let isoFormatted = str.replace(" ", "T");
             let d = new Date(isoFormatted);
             if (!isNaN(d.getTime())) return d;
 
-            // พาร์สรูปแบบวันที่ทั่วไป YYYY-MM-DD HH:mm:ss
             let parts = str.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
             if (parts) {
                 return new Date(
@@ -610,7 +605,6 @@
             return null;
         }
 
-        // สกัดวันที่/เวลาจากชื่ออัลบั้ม (เช่น 037Studio_23.10.69_13:00)
         function parseDateFromTitle(title) {
             if (!title) return null;
             const match = title.match(/(\d{2})\.(\d{2})\.(\d{2,4})(?:_(\d{2}):(\d{2}))?/);
@@ -640,31 +634,26 @@
                 return { text: "ไม่ลบอัตโนมัติ", isExpired: false, totalSeconds: Infinity };
             }
 
-            // ตรวจสอบค่า expireDays (รองรับทั้งทศนิยมและ 0)
             let expireDays = album.expireDays !== undefined ? parseFloat(album.expireDays) : null;
             
             if (expireDays === 0) {
                 return { text: "ไม่ลบอัตโนมัติ", isExpired: false, totalSeconds: Infinity };
             }
 
-            // หากไม่มีกำหนดไว้ ให้ดึงจาก LocalStorage ถ้าไม่มีจริงๆ จึงถือเป็น 7 วัน
             if (expireDays === null || isNaN(expireDays)) {
                 expireDays = 7;
             }
 
             let createdDate = null;
 
-            // 1. ดึงวันที่สร้างจาก createdAt
             if (album.createdAt) {
                 createdDate = safeParseDate(album.createdAt);
             }
 
-            // 2. หากไม่มี ให้ดึงจากชื่ออัลบั้ม
             if (!createdDate && album.title) {
                 createdDate = parseDateFromTitle(album.title);
             }
 
-            // 3. ป้องกันกรณีหาไม่เจอ ใช้วันเวลาปัจจุบัน
             if (!createdDate) {
                 createdDate = new Date();
             }
@@ -831,7 +820,6 @@
                         let localMatch = albums.find(a => a.title === driveAlbum.title || a.id === driveAlbum.id);
                         if (localMatch) {
                             driveAlbum.createdAt = driveAlbum.createdAt || localMatch.createdAt;
-                            // ไม่เขียนทับ expireDays ถ้ามีค่าเดิมที่บันทึกไว้ใน LocalStorage
                             driveAlbum.expireDays = localMatch.expireDays !== undefined ? localMatch.expireDays : 7;
                             if (localMatch.folderId) driveAlbum.folderId = localMatch.folderId;
                             if (localMatch.folderUrl) driveAlbum.folderUrl = localMatch.folderUrl;
