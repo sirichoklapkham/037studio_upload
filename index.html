@@ -80,8 +80,6 @@
 
         <!-- ================= ADMIN VIEW ================= -->
         <section id="adminView" class="space-y-6">
-            
-            <!-- Banner & New Album Button -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-navy-900 via-navy-800 to-navy-900 p-5 rounded-2xl border border-slate-700">
                 <div>
                     <span class="bg-amber-500/20 text-amber-400 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border border-amber-500/30">
@@ -125,7 +123,6 @@
                 </div>
             </div>
 
-            <!-- ALBUM CARDS GRID (Admin Album List) -->
             <div id="adminAlbumGridSection" class="space-y-4">
                 <h3 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
                     <i class="fa-solid fa-boxes-stacked text-sky-400"></i>
@@ -134,7 +131,6 @@
                 <div id="adminAlbumGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
             </div>
 
-            <!-- SINGLE ALBUM MANAGEMENT VIEW -->
             <div id="adminSingleAlbumSection" class="hidden space-y-5 border-t border-slate-800 pt-5">
                 <div class="flex items-center justify-between">
                     <button onclick="closeSingleAlbumAdmin()" class="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
@@ -150,7 +146,6 @@
                     </div>
                 </div>
 
-                <!-- Current Album Info Box -->
                 <div class="bg-navy-900 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row justify-between gap-3">
                     <div>
                         <span id="adminActiveTitle" class="text-base font-bold text-white uppercase font-mono"></span>
@@ -162,7 +157,6 @@
                     </div>
                 </div>
 
-                <!-- Upload Area (รองรับ Drag & Drop ลากไฟล์วาง) -->
                 <div class="bg-navy-900/90 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
                     <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
                         <i class="fa-solid fa-cloud-arrow-up text-sky-400"></i>
@@ -179,17 +173,14 @@
                     </div>
                 </div>
 
-                <!-- Admin Photo List -->
                 <div id="adminPhotoGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
             </div>
 
         </section>
 
-
-        <!-- ================= CUSTOMER GALLERY VIEW (READ ONLY & DOWNLOAD ONLY) ================= -->
+        <!-- ================= CUSTOMER GALLERY VIEW ================= -->
         <section id="customerView" class="hidden space-y-4">
             
-            <!-- Album Info Header Card -->
             <div class="bg-gradient-to-b from-[#15365a] to-[#0e243e] rounded-2xl p-5 border border-slate-700/50 shadow-xl text-center relative overflow-hidden">
                 <div class="absolute -right-10 -top-10 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl"></div>
                 <div class="inline-flex items-center px-3 py-1 rounded-full bg-slate-900/60 border border-slate-700 text-xs text-sky-400 mb-2">
@@ -198,19 +189,16 @@
                 <h1 id="customerAlbumTitle" class="text-lg sm:text-2xl font-bold tracking-wider text-white uppercase font-mono"></h1>
                 <p id="customerAlbumSub" class="text-xs text-slate-400 mt-1">รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว</p>
 
-                <!-- Expire Date Notification Banner -->
                 <div class="mt-3 bg-amber-500/15 border border-amber-500/30 rounded-xl p-2.5 max-w-md mx-auto text-xs text-amber-300 flex items-center justify-center gap-2">
                     <i class="fa-regular fa-clock text-amber-400 text-sm"></i>
                     <span>ระบบจะทำการลบรูปภาพอัตโนมัติใน: <strong id="customerExpireText" class="text-white">กำลังคำนวณ...</strong></span>
                 </div>
 
-                <!-- Loading Indicator Banner -->
                 <div id="customerLoadingBanner" class="mt-3 bg-sky-500/20 border border-sky-500/30 rounded-xl p-2.5 max-w-md mx-auto text-xs text-sky-300 flex items-center justify-center gap-2">
                     <i class="fa-solid fa-spinner fa-spin text-sky-400"></i>
                     <span>กำลังดึงข้อมูลรูปภาพจาก Google Drive...</span>
                 </div>
 
-                <!-- Download Progress Indicator -->
                 <div class="mt-3 flex items-center justify-center space-x-4 text-xs text-slate-300 bg-navy-950/60 py-2 px-4 rounded-xl max-w-sm mx-auto border border-slate-800">
                     <div>รูปทั้งหมด: <span id="totalPhotosCount" class="font-bold text-white">0</span></div>
                     <div class="w-px h-3 bg-slate-700"></div>
@@ -218,7 +206,6 @@
                 </div>
             </div>
 
-            <!-- Action Controls Bar -->
             <div class="flex items-center justify-between gap-2 py-1">
                 <div class="flex items-center gap-2">
                     <button id="btnSelectToggle" onclick="toggleSelectMode()" class="px-3.5 py-1.5 rounded-full bg-navy-800 hover:bg-navy-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-2 transition">
@@ -244,7 +231,6 @@
                 </div>
             </div>
 
-            <!-- Photos Grid -->
             <div id="photosGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4"></div>
 
             <div id="emptyCustomerState" class="hidden text-center py-16 bg-navy-900/40 rounded-2xl border border-dashed border-slate-800">
@@ -282,10 +268,9 @@
         </nav>
     </div>
 
-
     <!-- ================= MODALS & POPUPS ================= -->
 
-    <!-- Save to Gallery Modal (แก้ไขปัญหาระบบป๊อบอัปค้าง และเปิดไม่ได้ในรอบถัดไป) -->
+    <!-- Save to Gallery Modal -->
     <div id="modalSaveToGallery" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="bg-white text-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-2">
@@ -298,7 +283,6 @@
                 </button>
             </div>
 
-            <!-- Status Banner -->
             <div id="saveModalBanner" class="bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 space-y-2">
                 <p id="saveModalBannerText" class="text-xs font-semibold text-amber-900 flex items-center gap-2">
                     <i id="saveModalIcon" class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> 
@@ -309,19 +293,16 @@
                 </div>
             </div>
 
-            <!-- Instructions -->
             <div id="saveModalInstructions" class="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 text-xs space-y-1">
                 <p class="font-bold text-slate-800">เมื่อหน้าต่างเด้งขึ้นมา เลือก "บันทึกภาพ" (Save Images)</p>
                 <p class="text-[11px] text-slate-500">เมื่อดาวน์โหลดแล้ว จะมีสถานะติ๊กถูกสีเขียวทับบนรูปภาพในแกลเลอรี</p>
             </div>
 
-            <!-- Action Button -->
-            <button id="btnTriggerSaveGallery" class="w-full py-3.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all">
+            <button id="btnTriggerSaveGallery" class="w-full py-3.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer">
                 <i id="btnSaveIcon" class="fa-solid fa-download text-sm"></i>
                 <span id="btnSaveText">บันทึก 1 รูปลงเครื่อง</span>
             </button>
 
-            <!-- Cancel Button -->
             <div id="saveModalCancelContainer" class="text-center pt-1">
                 <button onclick="closeSaveGalleryModal()" class="text-xs text-slate-400 hover:text-slate-600 font-medium">
                     หยุดดาวน์โหลด
@@ -329,7 +310,6 @@
             </div>
         </div>
     </div>
-
 
     <!-- Create Album Modal -->
     <div id="modalCreateAlbum" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -432,10 +412,9 @@
         </div>
     </div>
 
-
     <!-- ================= APP LOGIC JAVASCRIPT ================= -->
     <script>
-        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwFDXIcEkordB2aXSlWQa6khuSmi477CpAQbbqJmA7ZKJKfqrzQvlLZJTvVszZ_Nfhe/exec";
+        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwHA42mwUK4swJGF_G2hvPtf4x5JmBzw8nqIeW_mU_p_aCty6GaoxqljF7RemvmmQTy/exec";
         let googleScriptUrl = DEFAULT_SCRIPT_URL;
         let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
 
@@ -708,7 +687,6 @@
             renderAdminDashboard();
         }
 
-
         // ================= CUSTOMER GALLERY RENDER =================
         async function renderCustomerGallery() {
             const grid = document.getElementById('photosGrid');
@@ -770,12 +748,10 @@
                 card.innerHTML = `
                     <img src="${photo.url}" alt="${photo.name}" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onclick="handlePhotoClick('${photo.id}')" onerror="this.src='https://placehold.co/400x600/133050/ffffff?text=Studio+Image'">
                     
-                    <!-- เครื่องหมายติ๊กเลือกรูปภาพ -->
                     <div id="check_${photo.id}" onclick="toggleSelectPhoto('${photo.id}', event)" class="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-sky-500 border-white text-white' : 'border-white/70 bg-black/20 text-transparent'}">
                         <i class="fa-solid fa-check text-xs"></i>
                     </div>
 
-                    <!-- เครื่องหมายติ๊กถูกสีเขียวแบบจางทับกลางรูป เมื่อดาวน์โหลดแล้ว -->
                     <div id="downloaded_overlay_${photo.id}" class="${photo.downloaded ? 'flex' : 'hidden'} absolute inset-0 bg-black/30 backdrop-blur-[1px] items-center justify-center pointer-events-none">
                         <div class="w-12 h-12 rounded-full bg-emerald-500/90 text-white flex items-center justify-center text-xl shadow-2xl">
                             <i class="fa-solid fa-check"></i>
@@ -798,8 +774,7 @@
             grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
         }
 
-
-        // ================= SAVE TO GALLERY PROCESS (ปรับปรุงปุ่มดาวน์โหลดให้เด้งได้ทุกรอบ 100%) =================
+        // ================= SAVE TO GALLERY PROCESS (ปรับปรุงให้ป๊อปอัปเด้งตรงตามตัวอย่างทุกรอบ 100%) =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -832,18 +807,17 @@
             const btnIcon = document.getElementById('btnSaveIcon');
             const cancelBtn = document.getElementById('saveModalCancelContainer');
 
-            // รีเซ็ตการตั้งค่าของ Modal และปุ่ม ให้พร้อมสำหรับรอบการดาวน์โหลดใหม่เสมอ
+            // รีเซ็ต Modal และ Event Listener เสมอ
             banner.className = "bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 space-y-2";
             bannerText.className = "text-xs font-semibold text-amber-900 flex items-center gap-2";
             bannerText.innerHTML = `<i id="saveModalIcon" class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> <span>รูปพร้อมแล้ว แตะปุ่มด้านล่างเพื่อบันทึกลงเครื่อง</span>`;
             
             btn.className = "w-full py-3.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer";
-            btn.onclick = executeGallerySave; // ผูกฟังก์ชันบันทึกกลับคืนมาทุกรอบ
+            btn.onclick = executeGallerySave; 
             btnText.innerText = `บันทึก ${count} รูปลงเครื่อง`;
             btnIcon.className = "fa-solid fa-download text-sm";
 
             cancelBtn.classList.remove('hidden');
-
             openModal('modalSaveToGallery');
         }
 
@@ -852,7 +826,6 @@
             closeModal('modalSaveToGallery');
         }
 
-        // แปลงภาพเป็น Blob โดยตรง เพื่อลดการดึงจากเซิร์ฟเวอร์ซ้ำ
         async function fetchImageBlob(url) {
             try {
                 const res = await fetch(url);
@@ -862,7 +835,7 @@
             }
         }
 
-        // ประมวลผลและเด้ง Share Sheet ดาวน์โหลดรูปภาพ
+        // ฟังก์ชันเรียกดาวน์โหลดที่รักษาสิทธิ์ User-Activation ของ iOS Safari แบบ 100%
         async function executeGallerySave() {
             if (photosToSaveToGallery.length === 0) return;
 
@@ -894,7 +867,7 @@
                     }
                 }
 
-                // สั่งเด้ง Native iOS Share Sheet ตรงนี้ทันที
+                // สั่งเด้ง Native iOS Share Sheet ตรงนี้
                 if (filesArray.length > 0 && navigator.canShare && navigator.canShare({ files: filesArray })) {
                     await navigator.share({
                         files: filesArray,
@@ -903,10 +876,10 @@
                     sharedSuccessfully = true;
                 }
             } catch (err) {
-                console.log('User closed share window or browser fallback triggered');
+                console.log('Share window closed');
             }
 
-            // ถ้า Web Share ไม่ผ่าน ให้เปิดรูปในแท็บเพื่อบันทึกตรง
+            // Fallback กรณีเปิด Share Sheet ไม่สำเร็จ
             if (!sharedSuccessfully) {
                 photosToSaveToGallery.forEach((photo) => {
                     const a = document.createElement('a');
@@ -919,7 +892,7 @@
                 });
             }
 
-            // ปรับเปลี่ยนสถานะ Modal เป็นสำเร็จ และเตรียมปุ่มปิด
+            // แสดงผลป๊อปอัปสำเร็จเหมือนรูปตัวอย่าง
             photosToSaveToGallery.forEach(p => p.downloaded = true);
             saveCurrentPhotos();
 
@@ -930,15 +903,12 @@
             btn.className = "w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer";
             btnText.innerText = "ปิด";
             btnIcon.className = "hidden";
-            btn.onclick = closeSaveGalleryModal; // สลับเป็นปุ่มปิดในขั้นตอนสุดท้ายเท่านั้น
+            btn.onclick = closeSaveGalleryModal; 
 
             document.getElementById('saveModalCancelContainer').classList.add('hidden');
-
-            // อัปเดต UI หน้าแกลเลอรีให้ขึ้นติ๊กถูกสีเขียวทับบนรูป
             document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
             renderPhotoGridItems();
         }
-
 
         // ================= SELECTION MODE & LIGHTBOX =================
         function toggleSelectMode() {
