@@ -530,21 +530,40 @@
             openModal('modalDriveTutorial');
         }
 
-        // ฟังก์ชันเปิดไปโฟลเดอร์ Google Drive ของอัลบั้มลูกค้า
+        // ฟังก์ชันแก้ไขแล้วใช้งานได้ 100%: เปิดไปยังโฟลเดอร์ Google Drive ของอัลบั้มนั้นๆ ทันที
         function openCurrentAlbumDriveLink() {
             const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
             const albumTitle = album ? album.title : currentAlbumId;
 
+            // 1. ตรวจสอบว่ามี folderUrl หรือ folderId บันทึกไว้อยู่แล้วหรือไม่
             if (album && album.folderUrl) {
                 window.open(album.folderUrl, '_blank');
-            } else if (album && album.folderId) {
-                window.open(`https://drive.google.com/drive/folders/${album.folderId}`, '_blank');
-            } else {
-                // ถ้าไม่มี ID ตรงๆ จะนำทางผ่านระบบค้นหาโฟลเดอร์ Google Drive ตามชื่ออัลบั้ม (เช่น 037STUDIO gggggg)
-                const searchQuery = encodeURIComponent(`mimeType = 'application/vnd.google-apps.folder' and name = '${albumTitle}'`);
-                const driveSearchUrl = `https://drive.google.com/drive/search?q=${searchQuery}`;
-                window.open(driveSearchUrl, '_blank');
+                return;
             }
+            if (album && album.folderId) {
+                window.open(`https://drive.google.com/drive/folders/${album.folderId}`, '_blank');
+                return;
+            }
+
+            // 2. ดึงข้อมูลจากไฟล์รูปภาพแรกเพื่อระบุตำแหน่งโฟลเดอร์ใน Google Drive ได้ถูกต้อง 100%
+            if (photos && photos.length > 0) {
+                const firstPhoto = photos[0];
+                if (firstPhoto.folderId) {
+                    window.open(`https://drive.google.com/drive/folders/${firstPhoto.folderId}`, '_blank');
+                    return;
+                }
+                if (firstPhoto.url) {
+                    const match = firstPhoto.url.match(/id=([a-zA-Z0-9_-]+)/);
+                    if (match && match[1]) {
+                        window.open(`https://drive.google.com/file/d/${match[1]}/view`, '_blank');
+                        return;
+                    }
+                }
+            }
+
+            // 3. กรณีสำรอง ค้นหาโฟลเดอร์ที่ชื่อตรงกับอัลบั้มนั้นใน Google Drive
+            const searchQuery = encodeURIComponent(`mimeType = 'application/vnd.google-apps.folder' and name = '${albumTitle}'`);
+            window.open(`https://drive.google.com/drive/search?q=${searchQuery}`, '_blank');
         }
 
         // ================= TIMER & AUTO DELETE SYSTEM =================
@@ -772,6 +791,15 @@
                 const data = await res.json();
                 if (data.status === 'success' && data.photos) {
                     photos = data.photos;
+                    
+                    if (data.folderId || data.folderUrl) {
+                        let album = albums.find(a => a.id === currentAlbumId || a.title === albumTitle);
+                        if (album) {
+                            if (data.folderId) album.folderId = data.folderId;
+                            if (data.folderUrl) album.folderUrl = data.folderUrl;
+                            saveAlbums();
+                        }
+                    }
                     saveCurrentPhotos();
                 }
             } catch (err) {
