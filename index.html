@@ -490,6 +490,7 @@
         let currentMode = 'admin';
         let isCustomerSharedLink = false;
         let currentAlbumId = '';
+        let currentFolderIdParam = '';
         let albums = [];
         let photos = [];
         let isSelectMode = false;
@@ -515,6 +516,7 @@
         window.onload = async function() {
             const urlParams = new URLSearchParams(window.location.search);
             const albumParam = urlParams.get('album');
+            const folderParam = urlParams.get('folderId');
             
             loadStorageData();
             setupDragAndDrop();
@@ -523,6 +525,9 @@
             if (albumParam) {
                 isCustomerSharedLink = true;
                 currentAlbumId = decodeURIComponent(albumParam);
+                if (folderParam) {
+                    currentFolderIdParam = decodeURIComponent(folderParam);
+                }
                 
                 switchMode('customer');
                 
@@ -543,28 +548,27 @@
             openModal('modalDriveTutorial');
         }
 
-        // ฟังก์ชันแก้ไขเปิดเข้า Google Drive ในเบราว์เซอร์โดยตรง
+        // ฟังก์ชันแก้ไขลิงก์เปิด Google Drive ให้ตรงตามโฟลเดอร์ของอัลบั้มในมือถือและคอมพิวเตอร์
         function openCurrentAlbumDriveLink() {
+            let targetFolderId = null;
+
+            // 1. ค้นหาโฟลเดอร์ ID จากข้อมูลอัลบั้มที่โหลดมา
             const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
-
-            if (album && album.folderUrl) {
-                window.open(album.folderUrl, '_blank');
-                return;
-            }
             if (album && album.folderId) {
-                window.open(`https://drive.google.com/drive/folders/${album.folderId}`, '_blank');
+                targetFolderId = album.folderId;
+            } else if (currentFolderIdParam) {
+                targetFolderId = currentFolderIdParam;
+            } else if (photos && photos.length > 0 && photos[0].folderId) {
+                targetFolderId = photos[0].folderId;
+            }
+
+            // 2. หากมี targetFolderId ให้เปิดลิงก์โฟลเดอร์ของอัลบั้มนั้นทันที
+            if (targetFolderId) {
+                window.open(`https://drive.google.com/drive/folders/${targetFolderId}`, '_blank');
                 return;
             }
 
-            if (photos && photos.length > 0) {
-                const firstPhoto = photos[0];
-                if (firstPhoto.folderId) {
-                    window.open(`https://drive.google.com/drive/folders/${firstPhoto.folderId}`, '_blank');
-                    return;
-                }
-            }
-
-            // หากไม่มี Folder ID ย่อย ให้เปิดเข้าโฟลเดอร์ Google Drive หลักของร้านทันที
+            // 3. หากไม่มี folderId ของอัลบั้ม ให้เปิดเข้าโฟลเดอร์หลักของร้านค้า
             if (parentDriveFolderId) {
                 window.open(`https://drive.google.com/drive/folders/${parentDriveFolderId}`, '_blank');
                 return;
@@ -877,6 +881,7 @@
                             if (data.folderUrl) album.folderUrl = data.folderUrl;
                             saveAlbums();
                         }
+                        if (data.folderId) currentFolderIdParam = data.folderId;
                     }
                     saveCurrentPhotos();
                 }
@@ -997,6 +1002,7 @@
         async function openSingleAlbumAdmin(albumId) {
             currentAlbumId = albumId;
             const album = albums.find(a => a.id === albumId) || { title: albumId, sub: '' };
+            if (album && album.folderId) currentFolderIdParam = album.folderId;
             
             document.getElementById('adminActiveTitle').innerText = album.title;
             document.getElementById('adminActiveSub').innerText = album.sub || 'รายละเอียดอัลบั้ม';
@@ -1032,8 +1038,10 @@
 
             let currentAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
             if (!currentAlbum) {
-                currentAlbum = { id: currentAlbumId, title: currentAlbumId, expireDays: 7 };
+                currentAlbum = { id: currentAlbumId, title: currentAlbumId, expireDays: 7, folderId: currentFolderIdParam };
                 albums.unshift(currentAlbum);
+            } else if (currentFolderIdParam) {
+                currentAlbum.folderId = currentFolderIdParam;
             }
             
             const albumTitle = currentAlbum.title;
@@ -1591,7 +1599,6 @@
             let folderId = null;
             let folderUrl = null;
             let createdAt = new Date().toISOString();
-            const customerShareUrl = `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(title)}`;
 
             try {
                 const res = await fetch(googleScriptUrl, {
@@ -1603,7 +1610,7 @@
                         sub: sub,
                         expireDays: expireDays,
                         parentFolderId: parentDriveFolderId,
-                        customerUrl: customerShareUrl
+                        customerUrl: `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(title)}`
                     })
                 });
 
@@ -1673,7 +1680,12 @@
         function openShareModalCurrent() {
             const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
             const albumTitle = album ? album.title : currentAlbumId;
-            const shareUrl = `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(albumTitle)}`;
+            
+            // แนบ folderId เข้าไปในลิงก์แชร์ด้วยเพื่อความแน่นอนในอุปกรณ์มือถือ
+            let shareUrl = `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(albumTitle)}`;
+            if (album && album.folderId) {
+                shareUrl += `&folderId=${encodeURIComponent(album.folderId)}`;
+            }
 
             document.getElementById('shareOnlyUrlInput').value = shareUrl;
 
