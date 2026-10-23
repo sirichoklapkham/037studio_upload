@@ -255,13 +255,13 @@
         </nav>
     </div>
 
-    <!-- ================= FLOATING UPLOAD PROGRESS POPUP WIDGET (เหมือนตัวอย่างในวิดีโอ) ================= -->
+    <!-- ================= FLOATING UPLOAD PROGRESS POPUP WIDGET ================= -->
     <div id="uploadProgressWidget" class="fixed bottom-5 right-5 z-50 w-80 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 hidden transition-all duration-300 overflow-hidden">
         <!-- Widget Header -->
         <div class="bg-slate-100 px-4 py-3 flex items-center justify-between border-b border-slate-200">
             <div class="flex items-center gap-2">
                 <i id="widgetHeaderIcon" class="fa-solid fa-spinner fa-spin text-emerald-600"></i>
-                <span id="widgetTitle" class="text-xs font-bold text-slate-800">อัปโหลดเรียบร้อย 0/0</span>
+                <span id="widgetTitle" class="text-xs font-bold text-slate-800">ส่งเรียบร้อยแล้ว 0/0 รูป</span>
             </div>
             <div class="flex items-center gap-2 text-slate-500">
                 <button onclick="toggleUploadWidgetCollapse()" class="hover:text-slate-800 p-1">
@@ -279,7 +279,7 @@
         </div>
     </div>
 
-    <!-- Modals อื่นๆ (Drive Tutorial, Save, Create, Share, Lightbox) -->
+    <!-- Drive Tutorial Modal -->
     <div id="modalDriveTutorial" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white text-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
             <button onclick="closeModal('modalDriveTutorial')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1">
@@ -302,6 +302,7 @@
         </div>
     </div>
 
+    <!-- Save to Gallery Modal -->
     <div id="modalSaveToGallery" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="bg-white text-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-2">
@@ -326,6 +327,7 @@
         </div>
     </div>
 
+    <!-- Create Album Modal -->
     <div id="modalCreateAlbum" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-navy-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -364,23 +366,75 @@
         </div>
     </div>
 
+    <!-- ================= SHARE & QR CODE MODAL (แก้ไข UI เพิ่มปุ่มคัดลอก และ ลิงก์ตรงกัน) ================= -->
     <div id="modalShare" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white text-slate-800 w-full max-w-xl rounded-3xl p-6 shadow-2xl relative max-h-[92vh] overflow-y-auto space-y-4">
             <button onclick="closeModal('modalShare')" class="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1">
                 <i class="fa-solid fa-xmark text-xl"></i>
             </button>
-            <h3 class="text-lg font-bold text-slate-900">แชร์อัลบั้มให้ลูกค้า</h3>
-            <div class="flex flex-col sm:flex-row gap-4 bg-slate-50 p-4 rounded-2xl">
-                <div id="qrcodeCanvas"></div>
-                <div class="flex-1 space-y-2">
-                    <input type="text" id="shareOnlyUrlInput" readonly class="w-full bg-white border p-2 text-xs rounded-xl">
-                    <textarea id="shareFullMessageTextarea" readonly class="w-full h-28 bg-white border p-2 text-xs rounded-xl"></textarea>
-                    <button onclick="copyFullShareMessage()" class="w-full py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold">คัดลอกข้อความพร้อมลิงก์</button>
+
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">แชร์อัลบั้มให้ลูกค้า</h3>
+                <p class="text-xs text-slate-500">สแกน QR Code หรือคัดลอกข้อความ/ลิงก์ส่งให้ลูกค้าได้ทันที</p>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-stretch justify-center bg-slate-50 p-4 rounded-2xl border border-slate-200 gap-4">
+                <!-- Left QR Code Box -->
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center shrink-0">
+                    <div id="qrcodeCanvas"></div>
+                    <button onclick="downloadQRCodeImage()" class="mt-2 text-[11px] text-sky-600 font-semibold hover:underline flex items-center gap-1">
+                        <i class="fa-solid fa-download"></i> โหลด QR Code
+                    </button>
                 </div>
+
+                <!-- Right Share Info Box -->
+                <div class="w-full flex-1 space-y-3">
+                    <!-- ลิงก์เฉพาะ URL พร้อมปุ่มคัดลอก [ตามวงกลมสีเขียว] -->
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-1 flex items-center gap-1">
+                            <i class="fa-solid fa-link text-sky-500"></i> ลิงก์อัลบั้ม (เฉพาะ URL):
+                        </label>
+                        <div class="flex items-center bg-white border border-slate-300 rounded-xl p-1.5 pl-3 shadow-inner gap-2">
+                            <input type="text" id="shareOnlyUrlInput" readonly class="text-xs text-sky-600 font-mono font-medium truncate flex-1 bg-transparent focus:outline-none">
+                            <button onclick="copyOnlyAlbumUrl()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-sm shrink-0">
+                                <i class="fa-regular fa-copy"></i> คัดลอกลิงก์
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ข้อความพร้อมส่งให้ลูกค้า -->
+                    <div class="flex items-center justify-between pt-1">
+                        <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-comment-dots text-sky-600"></i> ข้อความพร้อมส่งให้ลูกค้า
+                        </label>
+                        <div class="flex items-center gap-1">
+                            <button id="btnEditShareMsg" onclick="toggleEditShareMessage()" class="text-[11px] text-slate-500 hover:text-sky-600 px-2 py-0.5 rounded bg-slate-200/60 transition">
+                                <i class="fa-solid fa-pen-to-square"></i> แก้ไขข้อความ
+                            </button>
+                            <button id="btnResetShareMsg" onclick="resetDefaultShareMessage()" class="hidden text-[11px] text-slate-500 hover:text-rose-600 px-2 py-0.5 rounded bg-slate-200/60 transition">
+                                <i class="fa-solid fa-rotate-left"></i> คืนค่าเดิม
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="relative">
+                        <textarea id="shareFullMessageTextarea" readonly class="w-full h-32 bg-white border border-slate-300 rounded-xl p-3 text-xs text-slate-800 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none shadow-inner"></textarea>
+                    </div>
+
+                    <button onclick="copyFullShareMessage()" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition">
+                        <i class="fa-solid fa-copy text-sm"></i>
+                        <span>คัดลอกข้อความทั้งหมดพร้อมลิงก์</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-100 pt-3 flex justify-end">
+                <button onclick="closeModal('modalShare')" class="px-5 py-2 bg-slate-100 text-slate-700 font-medium text-xs rounded-xl hover:bg-slate-200">ปิด</button>
             </div>
         </div>
     </div>
 
+    <!-- Lightbox Modal -->
     <div id="modalLightbox" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4">
         <div class="flex justify-between text-white">
             <span id="lightboxIndex">1 / 1</span>
@@ -391,6 +445,7 @@
         </div>
     </div>
 
+    <!-- Toast Notification -->
     <div id="toast" class="fixed top-14 left-1/2 -translate-x-1/2 z-50 hidden transition-all duration-300">
         <div class="bg-navy-800 text-white border border-slate-600 px-4 py-2.5 rounded-full shadow-2xl text-xs flex items-center gap-2">
             <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
@@ -504,7 +559,6 @@
             if (dateInput instanceof Date) return isNaN(dateInput.getTime()) ? null : dateInput;
 
             let str = String(dateInput).trim();
-            
             let isoFormatted = str.replace(" ", "T");
             let d = new Date(isoFormatted);
             if (!isNaN(d.getTime())) return d;
@@ -554,7 +608,6 @@
             }
 
             let expireDays = album.expireDays !== undefined ? parseFloat(album.expireDays) : null;
-            
             if (expireDays === 0) {
                 return { text: "ไม่ลบอัตโนมัติ", isExpired: false, totalSeconds: Infinity };
             }
@@ -564,15 +617,12 @@
             }
 
             let createdDate = null;
-
             if (album.createdAt) {
                 createdDate = safeParseDate(album.createdAt);
             }
-
             if (!createdDate && album.title) {
                 createdDate = parseDateFromTitle(album.title);
             }
-
             if (!createdDate) {
                 createdDate = new Date();
             }
@@ -1186,7 +1236,7 @@
                 btn.className = "px-3.5 py-1.5 rounded-full bg-navy-800 hover:bg-navy-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-2 transition";
                 icon.className = "fa-regular fa-circle";
                 text.innerText = "เลือกรูปภาพ";
-                btnBatch.classList.add('hidden');
+                btnBatch.add('hidden');
                 
                 selectedPhotoIds.forEach(id => {
                     const checkBtn = document.getElementById(`check_${id}`);
@@ -1268,25 +1318,21 @@
             const container = document.getElementById('lightboxContainer');
             if (!container) return;
 
+            let touchStartX = 0;
+            let touchEndX = 0;
+
             container.addEventListener('touchstart', (e) => {
                 touchStartX = e.changedTouches[0].screenX;
             }, { passive: true });
 
             container.addEventListener('touchend', (e) => {
                 touchEndX = e.changedTouches[0].screenX;
-                handleSwipeGesture();
-            }, { passive: true });
-        }
-
-        function handleSwipeGesture() {
-            const swipeDistance = touchEndX - touchStartX;
-            if (Math.abs(swipeDistance) > 40) {
-                if (swipeDistance < 0) {
-                    nextLightboxPhoto();
-                } else {
-                    prevLightboxPhoto();
+                const swipeDistance = touchEndX - touchStartX;
+                if (Math.abs(swipeDistance) > 40) {
+                    if (swipeDistance < 0) nextLightboxPhoto();
+                    else prevLightboxPhoto();
                 }
-            }
+            }, { passive: true });
         }
 
         function downloadSingleCurrentPhoto() {
@@ -1330,7 +1376,6 @@
             totalUploadCount = files.length;
             completedUploadCount = 0;
 
-            // 1. แสดงและรีเซ็ต Widget
             const widget = document.getElementById('uploadProgressWidget');
             const widgetList = document.getElementById('uploadWidgetList');
             const widgetTitle = document.getElementById('widgetTitle');
@@ -1347,13 +1392,11 @@
 
             const uploadQueue = [];
 
-            // 2. สร้างรายการใน Widget + การ์ดพรีวิวในแกลเลอรี
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
                 const base64 = await readFileAsDataURL(file);
                 const itemKey = 'item_' + Date.now() + '_' + i;
 
-                // เพิ่มแถบสถานะลงใน Widget ป๊อบอัพ
                 const widgetRow = document.createElement('div');
                 widgetRow.id = `widget_row_${itemKey}`;
                 widgetRow.className = "flex items-center justify-between pt-1.5 first:pt-0";
@@ -1368,7 +1411,6 @@
                 `;
                 widgetList.appendChild(widgetRow);
 
-                // การ์ดพรีวิวชั่วคราวใน Admin Grid
                 const card = document.createElement('div');
                 card.id = `card_${itemKey}`;
                 card.className = "relative bg-navy-950 rounded-xl overflow-hidden border border-slate-800 aspect-square";
@@ -1384,7 +1426,6 @@
                 uploadQueue.push({ file, base64, itemKey, card });
             }
 
-            // 3. ฟังก์ชันสำหรับอัปโหลดเดี่ยว
             const uploadSingleFile = async (task) => {
                 try {
                     const response = await fetch(googleScriptUrl, {
@@ -1403,7 +1444,6 @@
                         photos.push(result.file);
                         saveCurrentPhotos();
 
-                        // อัปเดตการ์ดพรีวิว
                         task.card.innerHTML = `
                             <img src="${result.file.url}" class="w-full h-full object-cover">
                             <button onclick="deletePhoto('${result.file.id}')" class="absolute top-2 right-2 w-7 h-7 bg-rose-600/90 hover:bg-rose-500 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition">
@@ -1414,7 +1454,6 @@
                             </div>
                         `;
 
-                        // อัปเดตไอคอนใน Widget
                         const statusIcon = document.getElementById(`status_icon_${task.itemKey}`);
                         if (statusIcon) {
                             statusIcon.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>`;
@@ -1423,7 +1462,6 @@
                         throw new Error("Upload Failed");
                     }
                 } catch (err) {
-                    // Fallback
                     const fallbackObj = {
                         id: 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                         albumId: currentAlbumId,
@@ -1452,7 +1490,6 @@
                 }
             };
 
-            // 4. ประมวลผลแบบ Concurrent (ครั้งละ 5 รูปพร้อมกันเพื่อความเร็วสูง)
             const CONCURRENCY_LIMIT = 5;
             const pool = [];
 
@@ -1463,7 +1500,6 @@
                 if (pool.length >= CONCURRENCY_LIMIT) {
                     await Promise.race(pool);
                     for (let i = pool.length - 1; i >= 0; i--) {
-                        // เคลียร์งานที่เสร็จแล้วออกจาก Pool
                         pool.splice(i, 1);
                     }
                 }
@@ -1471,7 +1507,6 @@
 
             await Promise.all(pool);
 
-            // เมื่ออัปโหลดครบทุกรูปแล้ว
             widgetIcon.className = "fa-solid fa-circle-check text-emerald-500";
             widgetTitle.innerText = `ส่งไฟล์เรียบร้อยแล้ว - ${totalUploadCount} รูป`;
             showToast('อัปโหลดรูปภาพทั้งหมดเรียบร้อยแล้ว');
@@ -1631,10 +1666,10 @@
             }
         }
 
-        // ================= SHARE MODALS =================
+        // ================= SHARE MODALS (FIXED ALBUM LINK SYNC) =================
         function openShareModalForId(albumId, event) {
             if (event) event.stopPropagation();
-            currentAlbumId = albumId;
+            currentAlbumId = albumId; // อัปเดต currentAlbumId ทันที [แก้ไขจุดหลัก]
             openShareModalCurrent();
         }
 
@@ -1642,6 +1677,7 @@
             const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
             const albumTitle = album ? album.title : currentAlbumId;
             
+            // สร้าง URL ของอัลบั้มปัจจุบันให้ตรงกันทุกที่
             let shareUrl = `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(albumTitle)}`;
             if (album && album.folderId) {
                 shareUrl += `&folderId=${encodeURIComponent(album.folderId)}`;
@@ -1655,6 +1691,7 @@
                 expireInfo = "อัลบั้มนี้ไม่มีกำหนดลบอัตโนมัติ";
             }
 
+            // สร้างข้อความแชร์ใหม่สดทุกครั้ง อิงตาม shareUrl ของอัลบั้มที่เลือก
             let customTemplate = localStorage.getItem('sikram_share_template') || DEFAULT_SHARE_TEMPLATE;
             let finalMsg = customTemplate.replace('{LINK}', shareUrl).replace('{EXPIRE_INFO}', expireInfo);
 
@@ -1675,6 +1712,49 @@
             openModal('modalShare');
         }
 
+        function copyOnlyAlbumUrl() {
+            const urlInput = document.getElementById('shareOnlyUrlInput');
+            navigator.clipboard.writeText(urlInput.value).then(() => {
+                showToast('คัดลอกลิงก์เรียบร้อยแล้ว!');
+            }).catch(err => {
+                urlInput.select();
+                document.execCommand('copy');
+                showToast('คัดลอกลิงก์เรียบร้อย!');
+            });
+        }
+
+        function toggleEditShareMessage() {
+            const textarea = document.getElementById('shareFullMessageTextarea');
+            const btnEdit = document.getElementById('btnEditShareMsg');
+            const btnReset = document.getElementById('btnResetShareMsg');
+
+            if (!isEditingShareMsg) {
+                isEditingShareMsg = true;
+                textarea.readOnly = false;
+                textarea.className = "w-full h-32 bg-amber-50/50 border-2 border-amber-400 rounded-xl p-3 text-xs text-slate-800 font-sans leading-relaxed focus:outline-none resize-none shadow-md";
+                textarea.focus();
+                btnEdit.innerHTML = `<i class="fa-solid fa-floppy-disk text-emerald-600"></i> บันทึกแม่แบบ`;
+                btnReset.classList.remove('hidden');
+                showToast('สามารถแก้ไขข้อความได้แล้ว', 'warning');
+            } else {
+                isEditingShareMsg = false;
+                textarea.readOnly = true;
+                textarea.className = "w-full h-32 bg-white border border-slate-300 rounded-xl p-3 text-xs text-slate-800 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none shadow-inner";
+                btnEdit.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> แก้ไขข้อความ`;
+                btnReset.classList.add('hidden');
+
+                let currentVal = textarea.value;
+                localStorage.setItem('sikram_share_template', currentVal);
+                showToast('บันทึกแม่แบบข้อความเรียบร้อยแล้ว');
+            }
+        }
+
+        function resetDefaultShareMessage() {
+            localStorage.removeItem('sikram_share_template');
+            openShareModalCurrent();
+            showToast('คืนค่าข้อความเริ่มต้นเรียบร้อย');
+        }
+
         function copyFullShareMessage() {
             const textarea = document.getElementById('shareFullMessageTextarea');
             navigator.clipboard.writeText(textarea.value).then(() => {
@@ -1684,6 +1764,17 @@
                 document.execCommand('copy');
                 showToast('คัดลอกข้อความเรียบร้อย!');
             });
+        }
+
+        function downloadQRCodeImage() {
+            const img = document.querySelector('#qrcodeCanvas img');
+            if (img) {
+                const a = document.createElement('a');
+                a.href = img.src;
+                a.download = `QRCode-${currentAlbumId}.png`;
+                a.click();
+                showToast('ดาวน์โหลด QR Code เรียบร้อย');
+            }
         }
 
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
