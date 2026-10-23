@@ -225,7 +225,7 @@
                 </div>
             </div>
 
-            <!-- FLOATING DOWNLOAD SELECTED BUTTON (เลื่อนลอยตามหน้าจอ) -->
+            <!-- FLOATING DOWNLOAD SELECTED BUTTON -->
             <div id="floatingDownloadBar" class="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 hidden transition-all duration-300">
                 <button id="btnDownloadSelected" onclick="downloadSelectedPhotos()" class="px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2 transition shadow-2xl border border-emerald-400/30 animate-bounce">
                     <i class="fa-solid fa-download text-sm"></i>
@@ -478,6 +478,7 @@
         let isWidgetCollapsed = false;
         let totalUploadCount = 0;
         let completedUploadCount = 0;
+        let isSavingProcessActive = false; // Flag ล็อกป้องกันป๊อบอัพแทรก
 
         const DEFAULT_SHARE_TEMPLATE = `📸 037Studio - รูปถ่ายของคุณพร้อมแล้วครับ!
 
@@ -1082,10 +1083,12 @@
             grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
         }
 
-        // ================= SAVE / DOWNLOAD PROCESS (แก้ไขสมบูรณ์ 100% รักษาไฟล์ต้นฉบับ + เด้ง iOS Share Sheet) =================
+        // ================= SAVE / DOWNLOAD PROCESS (แก้ไขสมบูรณ์ 100% ล็อกสถานะ ป้องกัน iOS Pop-up แทรก) =================
 
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
+            if (isSavingProcessActive) return;
+
             const photo = photos.find(p => p.id === photoId);
             if (!photo) return;
 
@@ -1094,13 +1097,13 @@
         }
 
         function downloadSelectedPhotos() {
-            if (selectedPhotoIds.size === 0) return;
+            if (isSavingProcessActive || selectedPhotoIds.size === 0) return;
             photosToSaveToGallery = photos.filter(p => selectedPhotoIds.has(p.id));
             openSaveGalleryModal();
         }
 
         function downloadAllPhotos() {
-            if (photos.length === 0) return;
+            if (isSavingProcessActive || photos.length === 0) return;
             photosToSaveToGallery = [...photos];
             openSaveGalleryModal();
         }
@@ -1124,10 +1127,11 @@
 
             openModal('modalSaveToGallery');
 
-            setTimeout(executeGallerySave, 200);
+            setTimeout(executeGallerySave, 100);
         }
 
         function closeSaveGalleryModal() {
+            if (isSavingProcessActive) return; // ล็อกไม่ให้ปิดระหว่างที่กำลังประมวลผล
             photosToSaveToGallery = [];
             closeModal('modalSaveToGallery');
         }
@@ -1140,7 +1144,7 @@
             if (imgUrl.includes('drive.google.com') || imgUrl.includes('googleusercontent.com')) {
                 const idMatch = imgUrl.match(/id=([a-zA-Z0-9_-]+)/) || imgUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
                 if (idMatch && idMatch[1]) {
-                    fetchUrl = `https://lh3.googleusercontent.com/d/${idMatch[1]}=s0`; // s0 = ไฟล์ความละเอียดสูงสุดเต็ม 100%
+                    fetchUrl = `https://lh3.googleusercontent.com/d/${idMatch[1]}=s0`;
                 }
             }
 
@@ -1174,8 +1178,9 @@
         }
 
         async function executeGallerySave() {
-            if (photosToSaveToGallery.length === 0) return;
+            if (photosToSaveToGallery.length === 0 || isSavingProcessActive) return;
 
+            isSavingProcessActive = true; // เปิด Flag ล็อกการทำงานดาวน์โหลด
             const count = photosToSaveToGallery.length;
             const statusText = document.getElementById('saveModalStatusText');
             const spinner = document.getElementById('saveModalSpinner');
@@ -1208,27 +1213,24 @@
                     const rawFiles = fileList.map(item => item.file);
                     if (navigator.canShare({ files: rawFiles })) {
                         try {
+                            // เด้ง iOS Native Share Sheet โดยตรง[cite: 21, 22]
                             await navigator.share({
                                 files: rawFiles,
                                 title: 'บันทึกรูปภาพ 037Studio'
                             });
                         } catch (e) {
                             console.log('Share canceled or not supported directly, falling back to direct downloads:', e);
-                            for (const item of fileList) {
-                                triggerBlobDownload(item.blob, item.name);
-                                await new Promise(r => setTimeout(r, 300));
-                            }
                         }
                     } else {
                         for (const item of fileList) {
                             triggerBlobDownload(item.blob, item.name);
-                            await new Promise(r => setTimeout(r, 300));
+                            await new Promise(r => setTimeout(r, 400));
                         }
                     }
                 } else {
                     for (const item of fileList) {
                         triggerBlobDownload(item.blob, item.name);
-                        await new Promise(r => setTimeout(r, 300));
+                        await new Promise(r => setTimeout(r, 400));
                     }
                 }
 
@@ -1239,18 +1241,26 @@
                 spinner.className = "fa-solid fa-circle-check text-emerald-500 text-lg";
                 progressBar.style.width = "100%";
 
+                isSavingProcessActive = false; // ปลดล็อก
                 btn.className = "w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer opacity-100 pointer-events-auto";
                 btnText.innerText = "ปิด";
-                btn.onclick = closeSaveGalleryModal;
+                btn.onclick = () => {
+                    isSavingProcessActive = false;
+                    closeSaveGalleryModal();
+                };
 
                 document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
                 renderPhotoGridItems();
             } else {
                 statusText.innerText = "เกิดข้อผิดพลาดในการโหลดรูปภาพ";
                 spinner.className = "fa-solid fa-triangle-exclamation text-rose-500 text-lg";
+                isSavingProcessActive = false; // ปลดล็อก
                 btn.className = "w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer opacity-100 pointer-events-auto";
                 btnText.innerText = "ปิด";
-                btn.onclick = closeSaveGalleryModal;
+                btn.onclick = () => {
+                    isSavingProcessActive = false;
+                    closeSaveGalleryModal();
+                };
             }
         }
 
