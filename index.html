@@ -12,7 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- QRCode.js Library CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- JSZip Library CDN (เพิ่มสำหรับการ 압และ Zip ไฟล์หลายรูป) -->
+    <!-- JSZip Library CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <script>
@@ -323,7 +323,7 @@
             </div>
 
             <p id="saveModalInstructions" class="text-[11px] text-slate-500 leading-relaxed px-1">
-                กรณีดาวน์โหลดหลายรูป ระบบจะรวมเป็นไฟล์ ZIP เพื่อความสะดวกในการบันทึก
+                กรณีดาวน์โหลดหลายรูป ระบบจะดึงรูปจาก Google Drive และรวมเป็นไฟล์ ZIP ให้อัตโนมัติ
             </p>
 
             <button id="btnTriggerSaveGallery" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer">
@@ -1080,7 +1080,7 @@
             grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
         }
 
-        // ================= SAVE / DOWNLOAD PROCESS (แก้ไขเพิ่มการรวมไฟล์เป็น ZIP) =================
+        // ================= SAVE / DOWNLOAD PROCESS (ดึงรูปจาก Google Drive และรวมเข้า ZIP) =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -1112,7 +1112,7 @@
             const btn = document.getElementById('btnTriggerSaveGallery');
             const btnText = document.getElementById('btnSaveText');
 
-            statusText.innerText = count === 1 ? `กำลังดาวน์โหลดรูป 0/1` : `กำลังเตรียมดาวน์โหลด 0/${count}`;
+            statusText.innerText = count === 1 ? `กำลังดาวน์โหลดรูป 0/1` : `กำลังเตรียมดึงรูปภาพ 0/${count}`;
             spinner.className = "fa-solid fa-spinner fa-spin text-sky-600 text-base";
             progressBar.style.width = "0%";
             
@@ -1129,33 +1129,63 @@
             closeModal('modalSaveToGallery');
         }
 
-        async function fetchImageBlob(imgUrl) {
+        // ฟังก์ชันดึงรูปภาพแท้จาก Google Drive แบบป้องกัน CORS 100%
+        async function fetchImageBlob(photo) {
+            // 1. ลองดึงแบบ Fetch ปกติก่อน
             try {
-                const response = await fetch(imgUrl, { mode: 'cors' });
-                if (!response.ok) throw new Error('Fetch Error');
-                return await response.blob();
+                const targetUrl = photo.downloadUrl || photo.url;
+                const response = await fetch(targetUrl, { mode: 'cors' });
+                if (response.ok) {
+                    const blob = await response.blob();
+                    if (blob && blob.size > 0) return blob;
+                }
             } catch (e) {
-                return new Promise((resolve) => {
-                    const img = new Image();
-                    img.crossOrigin = "Anonymous";
-                    img.src = imgUrl;
-                    img.onload = function() {
-                        try {
-                            const canvas = document.createElement('canvas');
-                            canvas.width = img.naturalWidth || img.width;
-                            canvas.height = img.naturalHeight || img.height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0);
-                            canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
-                        } catch (err) {
-                            resolve(null);
-                        }
-                    };
-                    img.onerror = function() {
-                        resolve(null);
-                    };
-                });
+                // หากติด CORS ให้ลองวิธีถัดไป
             }
+
+            // 2. ดึงภาพผ่าน Proxy (Google Apps Script)
+            if (photo.id) {
+                try {
+                    const proxyUrl = `${googleScriptUrl}?action=getPhotoBlob&fileId=${encodeURIComponent(photo.id)}`;
+                    const res = await fetch(proxyUrl);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.status === 'success' && data.base64) {
+                            const byteCharacters = atob(data.base64);
+                            const byteNumbers = new Array(byteCharacters.length);
+                            for (let i = 0; i < byteCharacters.length; i++) {
+                                byteNumbers[i] = byteCharacters.charCodeAt(i);
+                            }
+                            const byteArray = new Uint8Array(byteNumbers);
+                            return new Blob([byteArray], { type: data.mimeType || 'image/jpeg' });
+                        }
+                    }
+                } catch (e) {
+                    // หากดึงไม่ได้ไปดึงผ่าน Canvas
+                }
+            }
+
+            // 3. ใช้ Canvas อ่านข้อมูลภาพถ้าดึง 2 วิธีแรกไม่ได้
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = photo.url;
+                img.onload = function() {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth || img.width;
+                        canvas.height = img.naturalHeight || img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
+                    } catch (err) {
+                        resolve(null);
+                    }
+                };
+                img.onerror = function() {
+                    resolve(null);
+                };
+            });
         }
 
         function triggerBlobDownload(blob, filename) {
@@ -1190,48 +1220,53 @@
             const btn = document.getElementById('btnTriggerSaveGallery');
             const btnText = document.getElementById('btnSaveText');
 
-            // กรณีดาวน์โหลดเพียง 1 รูป ให้ดาวน์โหลดตรงเป็นไฟล์รูปภาพทันที
+            // กรณีดาวน์โหลดเพียง 1 รูป ให้สั่งดาวน์โหลดเป็นไฟล์รูปภาพตรง
             if (count === 1) {
                 const p = photosToSaveToGallery[0];
                 statusText.innerText = `กำลังดาวน์โหลดรูป 1/1`;
                 progressBar.style.width = `100%`;
 
-                const blob = await fetchImageBlob(p.downloadUrl || p.url);
+                const blob = await fetchImageBlob(p);
                 if (blob) {
                     triggerBlobDownload(blob, p.name || `Studio_Photo_1.jpg`);
                 } else {
                     triggerHiddenIframeDownload(p.downloadUrl || p.url);
                 }
             } else {
-                // กรณีเลือกดาวน์โหลดหลายรูป รวมไฟล์ทั้งหมดให้อยู่ในรูปแบบ ZIP
+                // กรณีเลือกหลายรูป รวมไฟล์ลง ZIP
                 const zip = new JSZip();
                 const folderName = document.getElementById('customerAlbumTitle').innerText || '037Studio_Photos';
+                let addedFilesCount = 0;
 
                 for (let i = 0; i < count; i++) {
                     const p = photosToSaveToGallery[i];
-                    statusText.innerText = `กำลังดึงรูปภาพเข้า Zip (${i + 1}/${count})`;
+                    statusText.innerText = `กำลังดึงรูปภาพ (${i + 1}/${count})`;
                     progressBar.style.width = `${Math.round(((i + 1) / count) * 80)}%`;
 
-                    const blob = await fetchImageBlob(p.downloadUrl || p.url);
-                    if (blob) {
+                    const blob = await fetchImageBlob(p);
+                    if (blob && blob.size > 0) {
                         const fileName = p.name || `Photo_${i + 1}.jpg`;
                         zip.file(fileName, blob);
+                        addedFilesCount++;
                     }
                 }
 
-                statusText.innerText = `กำลังบีบอัดไฟล์ ZIP...`;
-                progressBar.style.width = `90%`;
+                if (addedFilesCount > 0) {
+                    statusText.innerText = `กำลังบีบอัดไฟล์ ZIP...`;
+                    progressBar.style.width = `90%`;
 
-                // บีบอัดไฟล์เป็น .zip
-                const zipBlob = await zip.generateAsync({ type: "blob" });
-                triggerBlobDownload(zipBlob, `${folderName}.zip`);
+                    const zipBlob = await zip.generateAsync({ type: "blob" });
+                    triggerBlobDownload(zipBlob, `${folderName}.zip`);
+                } else {
+                    alert("ไม่สามารถดึงข้อมูลรูปภาพเพื่อสร้างไฟล์ ZIP ได้ กรุณาลองใหม่อีกครั้ง");
+                }
             }
 
             // ทำเครื่องหมายรูปที่ถูกดาวน์โหลด
             photosToSaveToGallery.forEach(p => p.downloaded = true);
             saveCurrentPhotos();
 
-            statusText.innerText = count === 1 ? `ดาวน์โหลดรูปภาพสำเร็จ` : `ดาวน์โหลดไฟล์ ZIP สำเร็จ (${count} รูป)`;
+            statusText.innerText = count === 1 ? `ดาวน์โหลดรูปภาพสำเร็จ` : `สร้างไฟล์ ZIP เรียบร้อยแล้ว`;
             spinner.className = "fa-solid fa-circle-check text-emerald-500 text-lg";
             progressBar.style.width = "100%";
 
