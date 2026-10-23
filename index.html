@@ -257,7 +257,6 @@
 
     <!-- ================= FLOATING UPLOAD PROGRESS POPUP WIDGET ================= -->
     <div id="uploadProgressWidget" class="fixed bottom-5 right-5 z-50 w-80 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 hidden transition-all duration-300 overflow-hidden">
-        <!-- Widget Header -->
         <div class="bg-slate-100 px-4 py-3 flex items-center justify-between border-b border-slate-200">
             <div class="flex items-center gap-2">
                 <i id="widgetHeaderIcon" class="fa-solid fa-spinner fa-spin text-emerald-600"></i>
@@ -272,11 +271,7 @@
                 </button>
             </div>
         </div>
-
-        <!-- File Items List -->
-        <div id="uploadWidgetList" class="max-h-60 overflow-y-auto p-2 space-y-2 text-xs divide-y divide-slate-100">
-            <!-- Items injected by JS -->
-        </div>
+        <div id="uploadWidgetList" class="max-h-60 overflow-y-auto p-2 space-y-2 text-xs divide-y divide-slate-100"></div>
     </div>
 
     <!-- Drive Tutorial Modal -->
@@ -366,7 +361,7 @@
         </div>
     </div>
 
-    <!-- ================= SHARE & QR CODE MODAL (แก้ไข UI เพิ่มปุ่มคัดลอก และ ลิงก์ตรงกัน) ================= -->
+    <!-- ================= SHARE & QR CODE MODAL ================= -->
     <div id="modalShare" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white text-slate-800 w-full max-w-xl rounded-3xl p-6 shadow-2xl relative max-h-[92vh] overflow-y-auto space-y-4">
             <button onclick="closeModal('modalShare')" class="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1">
@@ -389,7 +384,7 @@
 
                 <!-- Right Share Info Box -->
                 <div class="w-full flex-1 space-y-3">
-                    <!-- ลิงก์เฉพาะ URL พร้อมปุ่มคัดลอก [ตามวงกลมสีเขียว] -->
+                    <!-- ลิงก์เฉพาะ URL พร้อมปุ่มคัดลอก -->
                     <div>
                         <label class="text-[11px] font-bold text-slate-600 block mb-1 flex items-center gap-1">
                             <i class="fa-solid fa-link text-sky-500"></i> ลิงก์อัลบั้ม (เฉพาะ URL):
@@ -472,7 +467,6 @@
         let isEditingShareMsg = false;
         let countdownTimerInterval = null;
 
-        // ตัวแปรสำหรับ Upload Widget
         let isWidgetCollapsed = false;
         let totalUploadCount = 0;
         let completedUploadCount = 0;
@@ -1236,7 +1230,7 @@
                 btn.className = "px-3.5 py-1.5 rounded-full bg-navy-800 hover:bg-navy-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-2 transition";
                 icon.className = "fa-regular fa-circle";
                 text.innerText = "เลือกรูปภาพ";
-                btnBatch.add('hidden');
+                btnBatch.classList.add('hidden');
                 
                 selectedPhotoIds.forEach(id => {
                     const checkBtn = document.getElementById(`check_${id}`);
@@ -1666,10 +1660,10 @@
             }
         }
 
-        // ================= SHARE MODALS (FIXED ALBUM LINK SYNC) =================
+        // ================= SHARE MODALS (ปรับปรุงการซิงค์ URL อัตโนมัติในกล่องข้อความ) =================
         function openShareModalForId(albumId, event) {
             if (event) event.stopPropagation();
-            currentAlbumId = albumId; // อัปเดต currentAlbumId ทันที [แก้ไขจุดหลัก]
+            currentAlbumId = albumId;
             openShareModalCurrent();
         }
 
@@ -1677,27 +1671,41 @@
             const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
             const albumTitle = album ? album.title : currentAlbumId;
             
-            // สร้าง URL ของอัลบั้มปัจจุบันให้ตรงกันทุกที่
+            // 1. สร้าง URL ของอัลบั้มปัจจุบัน
             let shareUrl = `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(albumTitle)}`;
             if (album && album.folderId) {
                 shareUrl += `&folderId=${encodeURIComponent(album.folderId)}`;
             }
 
+            // ใส่ URL ลงช่อง "ลิงก์อัลบั้ม (เฉพาะ URL)"
             document.getElementById('shareOnlyUrlInput').value = shareUrl;
 
+            // 2. คำนวณวันหมดอายุ
             let info = getCountdownInfo(album);
             let expireInfo = `อัลบั้มนี้จะถูกลบอัตโนมัติภายใน ${info.text}`;
             if (!album || album.expireDays === 0) {
                 expireInfo = "อัลบั้มนี้ไม่มีกำหนดลบอัตโนมัติ";
             }
 
-            // สร้างข้อความแชร์ใหม่สดทุกครั้ง อิงตาม shareUrl ของอัลบั้มที่เลือก
-            let customTemplate = localStorage.getItem('sikram_share_template') || DEFAULT_SHARE_TEMPLATE;
-            let finalMsg = customTemplate.replace('{LINK}', shareUrl).replace('{EXPIRE_INFO}', expireInfo);
+            // 3. ดึงแม่แบบข้อความ และทำการแทนที่ลิงก์ URL อัตโนมัติ
+            let customTemplate = localStorage.getItem('sikram_share_template');
+            let finalMsg = "";
+
+            if (customTemplate) {
+                // หากเคยบันทึกแม่แบบไว้ ให้ใช้ Regex ค้นหาบรรทัดที่เป็น URL แล้วเปลี่ยนเป็น shareUrl ใหม่เสมอ
+                let updatedText = customTemplate.replace(/(https?:\/\/[^\s]+)/g, shareUrl);
+                
+                // หากในแม่แบบยังมีป้าย {LINK} หรือ {EXPIRE_INFO} ให้แทนที่ด้วย
+                finalMsg = updatedText.replace('{LINK}', shareUrl).replace('{EXPIRE_INFO}', expireInfo);
+            } else {
+                // หากใช้ค่าเริ่มต้น ให้แทนที่ {LINK} ตามปกติ
+                finalMsg = DEFAULT_SHARE_TEMPLATE.replace('{LINK}', shareUrl).replace('{EXPIRE_INFO}', expireInfo);
+            }
 
             const textarea = document.getElementById('shareFullMessageTextarea');
             textarea.value = finalMsg;
 
+            // 4. สร้าง QR Code
             const qrContainer = document.getElementById('qrcodeCanvas');
             qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
