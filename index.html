@@ -1078,7 +1078,7 @@
             grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
         }
 
-        // ================= SAVE / DOWNLOAD PROCESS (แก้ไขปรับปรุงไม่ให้เปิดแท็บใหม่ / เด้งไป Google Drive) =================
+        // ================= SAVE / DOWNLOAD PROCESS (แก้ไขสเปกไม่ให้เปลี่ยนหน้าเว็บ 100%) =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -1110,7 +1110,6 @@
             const btn = document.getElementById('btnTriggerSaveGallery');
             const btnText = document.getElementById('btnSaveText');
 
-            // ตั้งค่าสถานะเริ่มต้นให้แสดงจำนวนรูปภาพ
             statusText.innerText = `กำลังดาวน์โหลดรูป 0/${count}`;
             spinner.className = "fa-solid fa-spinner fa-spin text-sky-600 text-base";
             progressBar.style.width = "0%";
@@ -1120,7 +1119,6 @@
 
             openModal('modalSaveToGallery');
 
-            // เรียกเริ่มดาวน์โหลดอัตโนมัติ
             setTimeout(executeGallerySave, 200);
         }
 
@@ -1129,34 +1127,41 @@
             closeModal('modalSaveToGallery');
         }
 
-        // แปลง URL รูปภาพให้เป็น Blob Buffer ป้องกันการเปลี่ยนหน้าเว็บหรือเปิดแท็บใหม่
+        // แปลงภาพถ่ายให้เป็น Blob Object โดยตรง ป้องกันปัญหาการ redirect หน้าเว็บไปที่อื่น
         async function fetchImageBlob(imgUrl) {
             try {
                 const response = await fetch(imgUrl, { mode: 'cors' });
-                if (!response.ok) throw new Error('Fetch Network Error');
-                return await response.blob();
+                if (response.ok) {
+                    return await response.blob();
+                }
             } catch (e) {
-                // หากติด CORS ให้แปลงผ่าน Canvas Image element สำรอง
-                return new Promise((resolve) => {
-                    const img = new Image();
-                    img.crossOrigin = "Anonymous";
-                    img.src = imgUrl;
-                    img.onload = function() {
+                // Ignore and use Canvas fallback
+            }
+
+            // หากติด CORS policy ใช้ Canvas ในการเรนเดอร์รูปเป็น Blob แทน
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = imgUrl;
+                img.onload = function() {
+                    try {
                         const canvas = document.createElement('canvas');
                         canvas.width = img.naturalWidth || img.width;
                         canvas.height = img.naturalHeight || img.height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0);
                         canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
-                    };
-                    img.onerror = function() {
+                    } catch (err) {
                         resolve(null);
-                    };
-                });
-            }
+                    }
+                };
+                img.onerror = function() {
+                    resolve(null);
+                };
+            });
         }
 
-        // ฟังก์ชันสั่งดาวน์โหลด Blob เข้าเครื่องโดยตรง
+        // ฟังก์ชันสั่งโหลดรูปเข้าเครื่องโดยไม่ต้องเปิดแท็บใหม่
         function triggerBlobDownload(blob, filename) {
             const blobUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -1166,6 +1171,18 @@
             link.click();
             document.body.removeChild(link);
             setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        }
+
+        // ฟังก์ชันสร้างซ่อน Iframe สำรอง กรณีไม่สามารถดึงรูปเป็น Blob ได้โดยตรง
+        function triggerHiddenIframeDownload(downloadUrl) {
+            let iframe = document.getElementById('hiddenDownloadIframe');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = 'hiddenDownloadIframe';
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+            }
+            iframe.src = downloadUrl;
         }
 
         async function executeGallerySave() {
@@ -1178,12 +1195,11 @@
             const btn = document.getElementById('btnTriggerSaveGallery');
             const btnText = document.getElementById('btnSaveText');
 
-            // เช็คว่าเป็นอุปกรณ์มือถือและรองรับ Native Share API หรือไม่
             const isMobileShareSupported = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
                                            && navigator.canShare;
 
             if (isMobileShareSupported) {
-                // กรณีมือถือ: ใช้ Web Share API บันทึกรูปพร้อมกัน
+                // บนมือถือ: ใช้ Web Share API
                 const fileList = [];
                 for (let i = 0; i < count; i++) {
                     const p = photosToSaveToGallery[i];
@@ -1208,7 +1224,7 @@
                     }
                 }
             } else {
-                // กรณีคอมพิวเตอร์ (Desktop): วนลูปดาวน์โหลดรูปภาพผ่าน Blob ทีละไฟล์ พร้อมหน่วงเวลา 400ms[cite: 18, 19]
+                // บนคอมพิวเตอร์: โหลดทีละรูปทีละไฟล์โดยไม่เปิดแท็บใหม่
                 for (let i = 0; i < count; i++) {
                     const p = photosToSaveToGallery[i];
                     statusText.innerText = `กำลังดาวน์โหลดรูป ${i + 1}/${count}`;
@@ -1218,25 +1234,20 @@
                     if (blob) {
                         triggerBlobDownload(blob, p.name || `Studio_Photo_${i + 1}.jpg`);
                     } else {
-                        // กรณีสำรอง สั่งดาวน์โหลดผ่าน Element ชั่วคราวโดยไม่เปิดแท็บใหม่
-                        const link = document.createElement('a');
-                        link.href = p.downloadUrl || p.url;
-                        link.download = p.name || `Studio_Photo_${i + 1}.jpg`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
+                        // ใช้ Hidden Iframe แทนการสร้างลิงก์ _blank ป้องกันไม่ให้เด้งเปลี่ยนหน้า
+                        triggerHiddenIframeDownload(p.downloadUrl || p.url);
                     }
 
-                    // หน่วงเวลา 400ms ให้ระบบดาวน์โหลดแต่ละไฟล์จนครบ[cite: 18, 19]
-                    await new Promise(r => setTimeout(r, 400));
+                    // เว้นระยะเวลา 500ms เพื่อให้ระบบดาวน์โหลดแต่ละไฟล์ได้สมบูรณ์
+                    await new Promise(r => setTimeout(r, 500));
                 }
             }
 
-            // ทำเครื่องหมายรูปที่ดาวน์โหลดเรียบร้อยแล้ว
+            // ทำเครื่องหมายรูปที่ถูกดาวน์โหลด
             photosToSaveToGallery.forEach(p => p.downloaded = true);
             saveCurrentPhotos();
 
-            // อัปเดตสถานะใน Modal เป็นดาวน์โหลดเสร็จสิ้น[cite: 19]
+            // อัปเดต UI เมื่อโหลดครบ
             statusText.innerText = `ดาวน์โหลดเสร็จสิ้น ${count} รูป`;
             spinner.className = "fa-solid fa-circle-check text-emerald-500 text-lg";
             progressBar.style.width = "100%";
@@ -1245,7 +1256,6 @@
             btnText.innerText = "ปิด";
             btn.onclick = closeSaveGalleryModal;
 
-            // รีเฟรชหน้าแกลเลอรีเพื่อให้แสดงติ๊กถูกทับบนรูปภาพ[cite: 19]
             document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
             renderPhotoGridItems();
         }
