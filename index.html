@@ -12,6 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- QRCode.js Library CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- JSZip Library CDN (เพิ่มสำหรับการ 압และ Zip ไฟล์หลายรูป) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <script>
         tailwind.config = {
@@ -321,7 +323,7 @@
             </div>
 
             <p id="saveModalInstructions" class="text-[11px] text-slate-500 leading-relaxed px-1">
-                หากขึ้นแจ้งเตือนให้กดอนุญาต <strong class="text-slate-700">"ดาวน์โหลดหลายไฟล์"</strong> เพื่อบันทึกรูปทั้งหมดลงเครื่อง
+                กรณีดาวน์โหลดหลายรูป ระบบจะรวมเป็นไฟล์ ZIP เพื่อความสะดวกในการบันทึก
             </p>
 
             <button id="btnTriggerSaveGallery" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer">
@@ -1078,7 +1080,7 @@
             grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
         }
 
-        // ================= SAVE / DOWNLOAD PROCESS (แก้ไขป้องกันการเปิดหน้าใหม่ 100%) =================
+        // ================= SAVE / DOWNLOAD PROCESS (แก้ไขเพิ่มการรวมไฟล์เป็น ZIP) =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -1110,12 +1112,12 @@
             const btn = document.getElementById('btnTriggerSaveGallery');
             const btnText = document.getElementById('btnSaveText');
 
-            statusText.innerText = `กำลังดาวน์โหลดรูป 0/${count}`;
+            statusText.innerText = count === 1 ? `กำลังดาวน์โหลดรูป 0/1` : `กำลังเตรียมดาวน์โหลด 0/${count}`;
             spinner.className = "fa-solid fa-spinner fa-spin text-sky-600 text-base";
             progressBar.style.width = "0%";
             
             btn.className = "w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer opacity-50 pointer-events-none";
-            btnText.innerText = "กำลังดาวน์โหลด...";
+            btnText.innerText = "กำลังดำเนินการ...";
 
             openModal('modalSaveToGallery');
 
@@ -1127,14 +1129,12 @@
             closeModal('modalSaveToGallery');
         }
 
-        // แปลง URL รูปภาพให้เป็น Blob ป้องกันการเด้งไปแท็บอื่น
         async function fetchImageBlob(imgUrl) {
             try {
                 const response = await fetch(imgUrl, { mode: 'cors' });
                 if (!response.ok) throw new Error('Fetch Error');
                 return await response.blob();
             } catch (e) {
-                // หากดึงข้ามโดเมนตรงๆ ไม่ได้ ใช้ Canvas เรนเดอร์เป็น Blob
                 return new Promise((resolve) => {
                     const img = new Image();
                     img.crossOrigin = "Anonymous";
@@ -1158,7 +1158,6 @@
             }
         }
 
-        // สั่งดาวน์โหลดไฟล์โดยตรงผ่านซ่อนลิงก์ ป้องกันเบราว์เซอร์เปิดแท็บใหม่
         function triggerBlobDownload(blob, filename) {
             const blobUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -1170,7 +1169,6 @@
             setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
         }
 
-        // สั่งดาวน์โหลดผ่าน hidden iframe ซ่อนหลังบ้านเมื่อไม่สามารถแปลง Blob ได้ ป้องกันการเด้งหน้าเว็บ
         function triggerHiddenIframeDownload(downloadUrl) {
             let iframe = document.getElementById('hiddenDownloadIframe');
             if (!iframe) {
@@ -1192,54 +1190,48 @@
             const btn = document.getElementById('btnTriggerSaveGallery');
             const btnText = document.getElementById('btnSaveText');
 
-            const isMobileShareSupported = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
-                                           && navigator.canShare;
+            // กรณีดาวน์โหลดเพียง 1 รูป ให้ดาวน์โหลดตรงเป็นไฟล์รูปภาพทันที
+            if (count === 1) {
+                const p = photosToSaveToGallery[0];
+                statusText.innerText = `กำลังดาวน์โหลดรูป 1/1`;
+                progressBar.style.width = `100%`;
 
-            if (isMobileShareSupported) {
-                const fileList = [];
-                for (let i = 0; i < count; i++) {
-                    const p = photosToSaveToGallery[i];
-                    statusText.innerText = `กำลังเตรียมรูป ${i + 1}/${count}`;
-                    progressBar.style.width = `${Math.round(((i + 1) / count) * 100)}%`;
-
-                    const blob = await fetchImageBlob(p.url);
-                    if (blob) {
-                        const file = new File([blob], p.name || `Photo_${i + 1}.jpg`, { type: 'image/jpeg' });
-                        fileList.push(file);
-                    }
-                }
-
-                if (fileList.length > 0 && navigator.canShare({ files: fileList })) {
-                    try {
-                        await navigator.share({
-                            files: fileList,
-                            title: 'บันทึกรูปภาพสตูดิโอ'
-                        });
-                    } catch (e) {
-                        console.log('Share canceled or error', e);
-                    }
+                const blob = await fetchImageBlob(p.downloadUrl || p.url);
+                if (blob) {
+                    triggerBlobDownload(blob, p.name || `Studio_Photo_1.jpg`);
+                } else {
+                    triggerHiddenIframeDownload(p.downloadUrl || p.url);
                 }
             } else {
+                // กรณีเลือกดาวน์โหลดหลายรูป รวมไฟล์ทั้งหมดให้อยู่ในรูปแบบ ZIP
+                const zip = new JSZip();
+                const folderName = document.getElementById('customerAlbumTitle').innerText || '037Studio_Photos';
+
                 for (let i = 0; i < count; i++) {
                     const p = photosToSaveToGallery[i];
-                    statusText.innerText = `กำลังดาวน์โหลดรูป ${i + 1}/${count}`;
-                    progressBar.style.width = `${Math.round(((i + 1) / count) * 100)}%`;
+                    statusText.innerText = `กำลังดึงรูปภาพเข้า Zip (${i + 1}/${count})`;
+                    progressBar.style.width = `${Math.round(((i + 1) / count) * 80)}%`;
 
                     const blob = await fetchImageBlob(p.downloadUrl || p.url);
                     if (blob) {
-                        triggerBlobDownload(blob, p.name || `Studio_Photo_${i + 1}.jpg`);
-                    } else {
-                        triggerHiddenIframeDownload(p.downloadUrl || p.url);
+                        const fileName = p.name || `Photo_${i + 1}.jpg`;
+                        zip.file(fileName, blob);
                     }
-
-                    await new Promise(r => setTimeout(r, 400));
                 }
+
+                statusText.innerText = `กำลังบีบอัดไฟล์ ZIP...`;
+                progressBar.style.width = `90%`;
+
+                // บีบอัดไฟล์เป็น .zip
+                const zipBlob = await zip.generateAsync({ type: "blob" });
+                triggerBlobDownload(zipBlob, `${folderName}.zip`);
             }
 
+            // ทำเครื่องหมายรูปที่ถูกดาวน์โหลด
             photosToSaveToGallery.forEach(p => p.downloaded = true);
             saveCurrentPhotos();
 
-            statusText.innerText = `ดาวน์โหลดเสร็จสิ้น ${count} รูป`;
+            statusText.innerText = count === 1 ? `ดาวน์โหลดรูปภาพสำเร็จ` : `ดาวน์โหลดไฟล์ ZIP สำเร็จ (${count} รูป)`;
             spinner.className = "fa-solid fa-circle-check text-emerald-500 text-lg";
             progressBar.style.width = "100%";
 
