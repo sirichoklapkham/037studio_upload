@@ -1078,7 +1078,7 @@
             grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
         }
 
-        // ================= SAVE / DOWNLOAD PROCESS (ปรับปรุงป้องกันบล็อกป๊อบอัพ & เด้งเปลี่ยนหน้า) =================
+        // ================= SAVE / DOWNLOAD PROCESS (แก้ปัญหาดาวน์โหลดนิ่งสนิท และป้องกันเปิดแท็บใหม่) =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -1127,44 +1127,26 @@
             closeModal('modalSaveToGallery');
         }
 
-        // แปลงไฟล์เป็น Blob เพื่อสั่งโหลดในหน้าเดิม ป้องกันไม่ให้เบราว์เซอร์เปิดแท็บใหม่ย้อนกลับไปที่ Google Drive
-        async function fetchImageBlob(imgUrl) {
-            try {
-                const response = await fetch(imgUrl, { mode: 'cors' });
-                if (!response.ok) throw new Error('Network response was not ok');
-                return await response.blob();
-            } catch (e) {
-                // หากติด CORS ให้แปลงผ่าน HTML Canvas Image สำรอง
-                return new Promise((resolve) => {
-                    const img = new Image();
-                    img.crossOrigin = "Anonymous";
-                    img.src = imgUrl;
-                    img.onload = function() {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = img.naturalWidth || img.width;
-                        canvas.height = img.naturalHeight || img.height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0);
-                        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
-                    };
-                    img.onerror = function() {
-                        resolve(null);
-                    };
-                });
-            }
-        }
-
-        // ฟังก์ชันสั่งยิงดาวน์โหลด Blob ป้องกันเปิดแท็บใหม่
-        function triggerBlobDownload(blob, filename) {
-            const blobUrl = URL.createObjectURL(blob);
+        // ฟังก์ชันสั่งยิงดาวน์โหลดลงเครื่องแบบตรง ป้องกัน CORS และไม่ให้สลับแท็บ
+        function triggerDirectDownload(url, filename) {
             const link = document.createElement('a');
-            link.href = blobUrl;
+            link.href = url;
             link.download = filename || 'Studio_Photo.jpg';
-            // ไม่ใส่ target="_blank" เพื่อคงอยู่ในหน้าเดิมเสมอ
+            // ไม่ใส่ target="_blank" เพื่อให้อยู่หน้าเดิม 100%
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        }
+
+        // ฟังก์ชันดึง Blob ป้องกันความผิดพลาด
+        async function fetchImageBlob(imgUrl) {
+            try {
+                const response = await fetch(imgUrl, { mode: 'cors' });
+                if (!response.ok) throw new Error('Fetch status not ok');
+                return await response.blob();
+            } catch (e) {
+                return null; // สลับใช้วิธีลิงก์ตรงสำรอง
+            }
         }
 
         async function executeGallerySave() {
@@ -1181,7 +1163,7 @@
                                            && navigator.canShare;
 
             if (isMobileShareSupported) {
-                // มือถือ: ใช้ Web Share API
+                // สำหรับมือถือ: บันทึกเข้าแกลเลอรีผ่าน Web Share API
                 const fileList = [];
                 for (let i = 0; i < count; i++) {
                     const p = photosToSaveToGallery[i];
@@ -1206,26 +1188,34 @@
                     }
                 }
             } else {
-                // คอมพิวเตอร์ (Desktop): ดาวน์โหลด Blob ลงเครื่องโดยตรง อยู่หน้าเดิม 100% ไม่ย้ายแท็บ
+                // สำหรับคอมพิวเตอร์ (Desktop): สั่งดาวน์โหลดทีละไฟล์อย่างรวดเร็วและคงอยู่หน้าเดิม 100%
                 for (let i = 0; i < count; i++) {
                     const p = photosToSaveToGallery[i];
                     statusText.innerText = `กำลังดาวน์โหลดรูป ${i + 1}/${count}`;
                     progressBar.style.width = `${Math.round(((i + 1) / count) * 100)}%`;
 
-                    const blob = await fetchImageBlob(p.downloadUrl || p.url);
+                    let downloadTargetUrl = p.downloadUrl || p.url;
+                    
+                    // แปลง Blob ล่วงหน้า หากล้มเหลวให้ใช้ URL ตรงทันที
+                    const blob = await fetchImageBlob(downloadTargetUrl);
                     if (blob) {
-                        triggerBlobDownload(blob, p.name || `Studio_Photo_${i + 1}.jpg`);
+                        const blobUrl = URL.createObjectURL(blob);
+                        triggerDirectDownload(blobUrl, p.name || `Studio_Photo_${i + 1}.jpg`);
+                        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+                    } else {
+                        triggerDirectDownload(downloadTargetUrl, p.name || `Studio_Photo_${i + 1}.jpg`);
                     }
 
-                    // หน่วงเวลา 400ms ให้เบราว์เซอร์ดาวน์โหลดทีละรูปโดยไม่บล็อกป๊อบอัพ
-                    await new Promise(r => setTimeout(r, 400));
+                    // หน่วงเวลา 500ms ระหว่างไฟล์ เพื่อกระตุ้นระบบดาวน์โหลดของ Chrome และป้องกันระบบบล็อก
+                    await new Promise(r => setTimeout(r, 500));
                 }
             }
 
-            // อัปเดตสถานะดาวน์โหลดสำเร็จ
+            // ทำเครื่องหมายว่าดาวน์โหลดเสร็จแล้ว
             photosToSaveToGallery.forEach(p => p.downloaded = true);
             saveCurrentPhotos();
 
+            // เปลี่ยนสถานะเป็เนเสร็จสิ้น
             statusText.innerText = `ดาวน์โหลดเสร็จสิ้น ${count} รูป`;
             spinner.className = "fa-solid fa-circle-check text-emerald-500 text-lg";
             progressBar.style.width = "100%";
@@ -1234,6 +1224,7 @@
             btnText.innerText = "ปิด";
             btn.onclick = closeSaveGalleryModal;
 
+            // แสดงเครื่องหมายติ๊กถูกทับบนรูปใน Gallery
             document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
             renderPhotoGridItems();
         }
