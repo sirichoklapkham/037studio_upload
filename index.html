@@ -75,7 +75,7 @@
     </header>
 
     <!-- Main Content View -->
-    <main class="flex-1 overflow-y-auto pb-24 max-w-5xl w-full mx-auto px-3 sm:px-6 pt-4">
+    <main class="flex-1 overflow-y-auto pb-28 max-w-5xl w-full mx-auto px-3 sm:px-6 pt-4">
 
         <!-- ================= ADMIN VIEW ================= -->
         <section id="adminView" class="space-y-6">
@@ -177,7 +177,7 @@
         </section>
 
         <!-- ================= CUSTOMER GALLERY VIEW ================= -->
-        <section id="customerView" class="hidden space-y-4">
+        <section id="customerView" class="hidden space-y-4 relative">
             
             <div class="bg-gradient-to-b from-[#15365a] to-[#0e243e] rounded-2xl p-5 border border-slate-700/50 shadow-xl text-center relative overflow-hidden">
                 <div class="absolute -right-10 -top-10 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl"></div>
@@ -210,10 +210,6 @@
                         <i class="fa-regular fa-circle" id="iconSelectToggle"></i>
                         <span id="textSelectToggle">เลือกรูปภาพ</span>
                     </button>
-                    <button id="btnDownloadSelected" onclick="downloadSelectedPhotos()" class="hidden px-3.5 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center gap-1.5 transition shadow-lg shadow-emerald-950">
-                        <i class="fa-solid fa-download"></i>
-                        <span>ดาวน์โหลดที่เลือก (<span id="selectedCount">0</span>)</span>
-                    </button>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -227,6 +223,14 @@
                         <button onclick="setGridCols(3)" class="p-1.5 px-2 text-slate-400 hover:text-white rounded text-xs hidden sm:block"><i class="fa-solid fa-border-all"></i></button>
                     </div>
                 </div>
+            </div>
+
+            <!-- FLOATING DOWNLOAD SELECTED BUTTON (เลื่อนลอยตามหน้าจอ) -->
+            <div id="floatingDownloadBar" class="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 hidden transition-all duration-300">
+                <button id="btnDownloadSelected" onclick="downloadSelectedPhotos()" class="px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2 transition shadow-2xl border border-emerald-400/30 animate-bounce">
+                    <i class="fa-solid fa-download text-sm"></i>
+                    <span>ดาวน์โหลดที่เลือก (<span id="selectedCount">0</span>)</span>
+                </button>
             </div>
 
             <div id="photosGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4"></div>
@@ -1257,18 +1261,20 @@
             const btn = document.getElementById('btnSelectToggle');
             const icon = document.getElementById('iconSelectToggle');
             const text = document.getElementById('textSelectToggle');
-            const btnBatch = document.getElementById('btnDownloadSelected');
+            const floatingBar = document.getElementById('floatingDownloadBar');
 
             if (isSelectMode) {
                 btn.className = "px-3.5 py-1.5 rounded-full bg-sky-600 text-white border border-sky-400 text-xs font-medium flex items-center gap-2 transition";
                 icon.className = "fa-solid fa-check-circle";
                 text.innerText = "กำลังเลือกรูปภาพ";
-                btnBatch.classList.remove('hidden');
+                if (selectedPhotoIds.size > 0 && floatingBar) {
+                    floatingBar.classList.remove('hidden');
+                }
             } else {
                 btn.className = "px-3.5 py-1.5 rounded-full bg-navy-800 hover:bg-navy-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-2 transition";
                 icon.className = "fa-regular fa-circle";
                 text.innerText = "เลือกรูปภาพ";
-                btnBatch.classList.add('hidden');
+                if (floatingBar) floatingBar.classList.add('hidden');
                 
                 selectedPhotoIds.forEach(id => {
                     const checkBtn = document.getElementById(`check_${id}`);
@@ -1308,7 +1314,17 @@
         }
 
         function updateSelectedCount() {
-            document.getElementById('selectedCount').innerText = selectedPhotoIds.size;
+            const count = selectedPhotoIds.size;
+            document.getElementById('selectedCount').innerText = count;
+            const floatingBar = document.getElementById('floatingDownloadBar');
+            
+            if (floatingBar) {
+                if (count > 0 && isSelectMode) {
+                    floatingBar.classList.remove('hidden');
+                } else {
+                    floatingBar.classList.add('hidden');
+                }
+            }
         }
 
         function openLightbox(photoId) {
