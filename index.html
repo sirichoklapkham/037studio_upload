@@ -309,7 +309,7 @@
             </button>
 
             <div>
-                <h3 class="text-base font-bold text-slate-900">ดาวน์โหลดรูปภาพ</h3>
+                <h3 class="text-base font-bold text-slate-900">ดาวน์โหลดรูปที่เลือก</h3>
                 <p id="saveModalPhotoCount" class="text-xs text-slate-500 mt-0.5">0 รูป</p>
             </div>
 
@@ -317,7 +317,7 @@
             <div id="saveModalBanner" class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
                 <div id="saveModalStatusContainer" class="flex items-center justify-center gap-2 text-xs font-semibold text-slate-700">
                     <i id="saveModalSpinner" class="fa-solid fa-spinner fa-spin text-sky-600 text-base"></i>
-                    <span id="saveModalStatusText">กำลังเตรียมไฟล์รูป...</span>
+                    <span id="saveModalStatusText">กำลังดาวน์โหลดรูป 0/0</span>
                 </div>
                 <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                     <div id="saveModalProgressBar" class="bg-emerald-500 h-2 rounded-full w-0 transition-all duration-300"></div>
@@ -325,11 +325,11 @@
             </div>
 
             <p id="saveModalInstructions" class="text-[11px] text-slate-500 leading-relaxed px-1">
-                เมื่อปุ่มเปลี่ยนเป็นสีเขียว ให้กดเพื่อเปิดเมนูบันทึกรูปภาพของเครื่องลงคลังภาพได้ทันที
+                หากขึ้นแจ้งเตือนให้กดอนุญาต <strong class="text-slate-700">"ดาวน์โหลดหลายไฟล์"</strong> เพื่อบันทึกรูปทั้งหมดลงเครื่อง
             </p>
 
-            <button id="btnTriggerSaveGallery" class="w-full py-3 bg-slate-800 text-white font-bold rounded-2xl text-xs transition-all opacity-50 pointer-events-none">
-                <span id="btnSaveText">กำลังดึงไฟล์รูปภาพ...</span>
+            <button id="btnTriggerSaveGallery" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer">
+                <span id="btnSaveText">ปิด</span>
             </button>
         </div>
     </div>
@@ -472,7 +472,6 @@
         let selectedPhotoIds = new Set();
         let currentLightboxPhotoId = null;
         let photosToSaveToGallery = [];
-        let preparedShareFiles = [];
         let isEditingShareMsg = false;
         let countdownTimerInterval = null;
 
@@ -1083,7 +1082,7 @@
             grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
         }
 
-        // ================= SAVE / DOWNLOAD PROCESS (แก้ไข iOS Native Share Sheet 100%) =================
+        // ================= SAVE / DOWNLOAD PROCESS (แก้ไขป้องกันการเปิดหน้าใหม่ 100%) =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -1115,36 +1114,55 @@
             const btn = document.getElementById('btnTriggerSaveGallery');
             const btnText = document.getElementById('btnSaveText');
 
-            statusText.innerText = `กำลังเตรียมไฟล์รูป 0/${count}`;
+            statusText.innerText = `กำลังดาวน์โหลดรูป 0/${count}`;
             spinner.className = "fa-solid fa-spinner fa-spin text-sky-600 text-base";
             progressBar.style.width = "0%";
             
-            btn.className = "w-full py-3 bg-slate-800 text-white font-bold rounded-2xl text-xs transition-all opacity-50 pointer-events-none";
-            btnText.innerText = "กำลังดึงรูปต้นฉบับ...";
+            btn.className = "w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer opacity-50 pointer-events-none";
+            btnText.innerText = "กำลังดาวน์โหลด...";
 
             openModal('modalSaveToGallery');
 
-            setTimeout(preparePhotosForDownload, 200);
+            setTimeout(executeGallerySave, 200);
         }
 
         function closeSaveGalleryModal() {
             photosToSaveToGallery = [];
-            preparedShareFiles = [];
             closeModal('modalSaveToGallery');
         }
 
-        // ดึงไฟล์รูปภาพดิบดั้งเดิมแบบ Direct ArrayBuffer -> Blob (ความละเอียด 100% ไม่บีบอัด)
+        // แปลง URL รูปภาพให้เป็น Blob ป้องกันการเด้งไปแท็บอื่น
         async function fetchImageBlob(imgUrl) {
             try {
                 const response = await fetch(imgUrl, { mode: 'cors' });
                 if (!response.ok) throw new Error('Fetch Error');
                 return await response.blob();
             } catch (e) {
-                console.warn('Direct fetch failed:', e);
-                return null;
+                // หากดึงข้ามโดเมนตรงๆ ไม่ได้ ใช้ Canvas เรนเดอร์เป็น Blob
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = "Anonymous";
+                    img.src = imgUrl;
+                    img.onload = function() {
+                        try {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.naturalWidth || img.width;
+                            canvas.height = img.naturalHeight || img.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0);
+                            canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
+                        } catch (err) {
+                            resolve(null);
+                        }
+                    };
+                    img.onerror = function() {
+                        resolve(null);
+                    };
+                });
             }
         }
 
+        // สั่งดาวน์โหลดไฟล์โดยตรงผ่านซ่อนลิงก์ ป้องกันเบราว์เซอร์เปิดแท็บใหม่
         function triggerBlobDownload(blob, filename) {
             const blobUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -1156,6 +1174,7 @@
             setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
         }
 
+        // สั่งดาวน์โหลดผ่าน hidden iframe ซ่อนหลังบ้านเมื่อไม่สามารถแปลง Blob ได้ ป้องกันการเด้งหน้าเว็บ
         function triggerHiddenIframeDownload(downloadUrl) {
             let iframe = document.getElementById('hiddenDownloadIframe');
             if (!iframe) {
@@ -1167,8 +1186,7 @@
             iframe.src = downloadUrl;
         }
 
-        // ขั้นตอนที่ 1: ดึงรูปภาพต้นฉบับไว้ใน Memory ก่อน
-        async function preparePhotosForDownload() {
+        async function executeGallerySave() {
             if (photosToSaveToGallery.length === 0) return;
 
             const count = photosToSaveToGallery.length;
@@ -1178,89 +1196,48 @@
             const btn = document.getElementById('btnTriggerSaveGallery');
             const btnText = document.getElementById('btnSaveText');
 
-            preparedShareFiles = [];
+            const isMobileShareSupported = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                                           && navigator.canShare;
 
-            for (let i = 0; i < count; i++) {
-                const p = photosToSaveToGallery[i];
-                statusText.innerText = `กำลังโหลดรูปต้นฉบับ ${i + 1}/${count}`;
-                progressBar.style.width = `${Math.round(((i + 1) / count) * 100)}%`;
+            if (isMobileShareSupported) {
+                const fileList = [];
+                for (let i = 0; i < count; i++) {
+                    const p = photosToSaveToGallery[i];
+                    statusText.innerText = `กำลังเตรียมรูป ${i + 1}/${count}`;
+                    progressBar.style.width = `${Math.round(((i + 1) / count) * 100)}%`;
 
-                const fileUrl = p.downloadUrl || p.url;
-                const blob = await fetchImageBlob(fileUrl);
-                if (blob) {
-                    const file = new File([blob], p.name || `Photo_${i + 1}.jpg`, { type: blob.type || 'image/jpeg' });
-                    preparedShareFiles.push(file);
+                    const blob = await fetchImageBlob(p.url);
+                    if (blob) {
+                        const file = new File([blob], p.name || `Photo_${i + 1}.jpg`, { type: 'image/jpeg' });
+                        fileList.push(file);
+                    }
                 }
-            }
 
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            const canNativeShare = navigator.canShare && preparedShareFiles.length > 0 && navigator.canShare({ files: preparedShareFiles });
-
-            if (isMobile && canNativeShare) {
-                statusText.innerText = `ดึงรูปภาพต้นฉบับสำเร็จ (${preparedShareFiles.length} รูป)`;
-                spinner.className = "fa-solid fa-circle-check text-emerald-500 text-lg";
-                progressBar.style.width = "100%";
-
-                btn.className = "w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer opacity-100 pointer-events-auto shadow-lg shadow-emerald-950 animate-bounce";
-                btnText.innerText = `กดตรงนี้เพื่อบันทึกรูปภาพลงเครื่อง (${preparedShareFiles.length} รูป)`;
-                
-                // ให้สิทธิ์คลิกปุ่มโดยตรงจาก User Event เพื่อเปิด Share Sheet บน iOS Safari ติด 100%
-                btn.onclick = executeiOSNativeShare;
+                if (fileList.length > 0 && navigator.canShare({ files: fileList })) {
+                    try {
+                        await navigator.share({
+                            files: fileList,
+                            title: 'บันทึกรูปภาพสตูดิโอ'
+                        });
+                    } catch (e) {
+                        console.log('Share canceled or error', e);
+                    }
+                }
             } else {
-                // กรณีรันบนคอมพิวเตอร์ หรืออุปกรณ์ที่ไม่รองรับ Share Sheet
-                executeDirectDownloads();
-            }
-        }
+                for (let i = 0; i < count; i++) {
+                    const p = photosToSaveToGallery[i];
+                    statusText.innerText = `กำลังดาวน์โหลดรูป ${i + 1}/${count}`;
+                    progressBar.style.width = `${Math.round(((i + 1) / count) * 100)}%`;
 
-        // ขั้นตอนที่ 2: เรียกใช้ Native Share Sheet บน iOS Safari จาก Direct User Action ทันที
-        async function executeiOSNativeShare() {
-            const btn = document.getElementById('btnTriggerSaveGallery');
-            const btnText = document.getElementById('btnSaveText');
+                    const blob = await fetchImageBlob(p.downloadUrl || p.url);
+                    if (blob) {
+                        triggerBlobDownload(blob, p.name || `Studio_Photo_${i + 1}.jpg`);
+                    } else {
+                        triggerHiddenIframeDownload(p.downloadUrl || p.url);
+                    }
 
-            if (preparedShareFiles.length > 0 && navigator.share) {
-                try {
-                    await navigator.share({
-                        files: preparedShareFiles,
-                        title: 'บันทึกรูปภาพสตูดิโอ'
-                    });
-
-                    photosToSaveToGallery.forEach(p => p.downloaded = true);
-                    saveCurrentPhotos();
-
-                    btnText.innerText = "บันทึกเรียบร้อย (ปิดหน้าต่าง)";
-                    btn.className = "w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer opacity-100 pointer-events-auto";
-                    btn.onclick = closeSaveGalleryModal;
-
-                    document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
-                    renderPhotoGridItems();
-                } catch (e) {
-                    console.log('Share canceled or error:', e);
+                    await new Promise(r => setTimeout(r, 400));
                 }
-            }
-        }
-
-        // กรณีเป็น PC หรือเบราว์เซอร์ที่ไม่รองรับ Share API
-        async function executeDirectDownloads() {
-            const count = photosToSaveToGallery.length;
-            const statusText = document.getElementById('saveModalStatusText');
-            const spinner = document.getElementById('saveModalSpinner');
-            const progressBar = document.getElementById('saveModalProgressBar');
-            const btn = document.getElementById('btnTriggerSaveGallery');
-            const btnText = document.getElementById('btnSaveText');
-
-            for (let i = 0; i < count; i++) {
-                const p = photosToSaveToGallery[i];
-                statusText.innerText = `กำลังดาวน์โหลดลงเครื่อง ${i + 1}/${count}`;
-                progressBar.style.width = `${Math.round(((i + 1) / count) * 100)}%`;
-
-                const fileUrl = p.downloadUrl || p.url;
-                const blob = await fetchImageBlob(fileUrl);
-                if (blob) {
-                    triggerBlobDownload(blob, p.name || `Studio_Photo_${i + 1}.jpg`);
-                } else {
-                    triggerHiddenIframeDownload(fileUrl);
-                }
-                await new Promise(r => setTimeout(r, 400));
             }
 
             photosToSaveToGallery.forEach(p => p.downloaded = true);
@@ -1271,7 +1248,7 @@
             progressBar.style.width = "100%";
 
             btn.className = "w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer opacity-100 pointer-events-auto";
-            btnText.innerText = "ปิดหน้าต่าง";
+            btnText.innerText = "ปิด";
             btn.onclick = closeSaveGalleryModal;
 
             document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
