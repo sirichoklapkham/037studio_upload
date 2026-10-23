@@ -1082,7 +1082,7 @@
             grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
         }
 
-        // ================= SAVE / DOWNLOAD PROCESS (แก้ไขปรับปรุงให้โหลดไฟล์ต้นฉบับ ไม่บีบอัดภาพ) =================
+        // ================= SAVE / DOWNLOAD PROCESS (ไม่บีบอัดภาพ + คง Native Share Sheet) =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -1131,19 +1131,19 @@
             closeModal('modalSaveToGallery');
         }
 
-        // ดึงไฟล์รูปภาพดิบดั้งเดิมโดยตรง (Original File Blob) ไม่ผ่าน Canvas เพื่อไม่ให้ภาพโดนลดขนาดหรือบีบอัดคุณภาพ
+        // ดึงไฟล์รูปภาพดิบดั้งเดิมโดยตรง (Original Stream Binary Blob) ไม่ผ่าน Canvas เพื่อไม่ให้ภาพถูกบีบอัดหรือลดพิกเซล
         async function fetchImageBlob(imgUrl) {
             try {
                 const response = await fetch(imgUrl, { mode: 'cors' });
                 if (!response.ok) throw new Error('Fetch Error');
                 return await response.blob();
             } catch (e) {
-                console.warn('Direct fetch failed, fallbacking:', e);
+                console.warn('Direct fetch failed:', e);
                 return null;
             }
         }
 
-        // สั่งดาวน์โหลดไฟล์โดยตรงผ่านซ่อนลิงก์ ป้องกันเบราว์เซอร์เปิดแท็บใหม่
+        // สั่งดาวน์โหลดไฟล์โดยตรงผ่านลิงก์ซ่อน
         function triggerBlobDownload(blob, filename) {
             const blobUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -1155,7 +1155,7 @@
             setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
         }
 
-        // สั่งดาวน์โหลดผ่าน hidden iframe หรือ direct link เมื่อไม่สามารถอ่าน Blob ได้
+        // สั่งดาวน์โหลดผ่าน hidden iframe กรณีติดปัญหา CORS
         function triggerHiddenIframeDownload(downloadUrl) {
             let iframe = document.getElementById('hiddenDownloadIframe');
             if (!iframe) {
@@ -1187,8 +1187,8 @@
                     statusText.innerText = `กำลังเตรียมรูป ${i + 1}/${count}`;
                     progressBar.style.width = `${Math.round(((i + 1) / count) * 100)}%`;
 
-                    const fileUrl = p.downloadUrl || p.url;
-                    const blob = await fetchImageBlob(fileUrl);
+                    const targetUrl = p.downloadUrl || p.url;
+                    const blob = await fetchImageBlob(targetUrl);
                     if (blob) {
                         const file = new File([blob], p.name || `Photo_${i + 1}.jpg`, { type: blob.type || 'image/jpeg' });
                         fileList.push(file);
@@ -1197,12 +1197,26 @@
 
                 if (fileList.length > 0 && navigator.canShare({ files: fileList })) {
                     try {
+                        // ป๊อบอัพระบบมือถือ Native Share Sheet
                         await navigator.share({
                             files: fileList,
                             title: 'บันทึกรูปภาพสตูดิโอ'
                         });
                     } catch (e) {
                         console.log('Share canceled or error', e);
+                    }
+                } else {
+                    // Fallback สำหรับเครื่องที่ไม่รองรับ share files
+                    for (let i = 0; i < count; i++) {
+                        const p = photosToSaveToGallery[i];
+                        const targetUrl = p.downloadUrl || p.url;
+                        const blob = await fetchImageBlob(targetUrl);
+                        if (blob) {
+                            triggerBlobDownload(blob, p.name || `Studio_Photo_${i + 1}.jpg`);
+                        } else {
+                            triggerHiddenIframeDownload(targetUrl);
+                        }
+                        await new Promise(r => setTimeout(r, 400));
                     }
                 }
             } else {
@@ -1211,13 +1225,12 @@
                     statusText.innerText = `กำลังดาวน์โหลดรูป ${i + 1}/${count}`;
                     progressBar.style.width = `${Math.round(((i + 1) / count) * 100)}%`;
 
-                    const fileUrl = p.downloadUrl || p.url;
-                    const blob = await fetchImageBlob(fileUrl);
+                    const targetUrl = p.downloadUrl || p.url;
+                    const blob = await fetchImageBlob(targetUrl);
                     if (blob) {
                         triggerBlobDownload(blob, p.name || `Studio_Photo_${i + 1}.jpg`);
                     } else {
-                        // ใช้ดาวน์โหลดตรงทางลิงก์ไฟล์ภาพต้นฉบับกรณีติดปัญหา CORS
-                        triggerHiddenIframeDownload(fileUrl);
+                        triggerHiddenIframeDownload(targetUrl);
                     }
 
                     await new Promise(r => setTimeout(r, 400));
