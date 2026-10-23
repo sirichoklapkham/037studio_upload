@@ -323,7 +323,7 @@
             </div>
 
             <p id="saveModalInstructions" class="text-[11px] text-slate-500 leading-relaxed px-1">
-                กรณีดาวน์โหลดหลายรูป ระบบจะดึงรูปจาก Google Drive และรวมเป็นไฟล์ ZIP ให้อัตโนมัติ
+                หากขึ้นแจ้งเตือนให้กดอนุญาต <strong class="text-slate-700">"ดาวน์โหลดหลายไฟล์"</strong> เพื่อบันทึกรูปทั้งหมดลงเครื่อง
             </p>
 
             <button id="btnTriggerSaveGallery" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer">
@@ -1080,7 +1080,7 @@
             grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
         }
 
-        // ================= SAVE / DOWNLOAD PROCESS (ดึงรูปจาก Google Drive และรวมเข้า ZIP) =================
+        // ================= SAVE / DOWNLOAD PROCESS =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -1131,7 +1131,6 @@
 
         // ฟังก์ชันดึงรูปภาพแท้จาก Google Drive แบบป้องกัน CORS 100%
         async function fetchImageBlob(photo) {
-            // 1. ลองดึงแบบ Fetch ปกติก่อน
             try {
                 const targetUrl = photo.downloadUrl || photo.url;
                 const response = await fetch(targetUrl, { mode: 'cors' });
@@ -1140,10 +1139,9 @@
                     if (blob && blob.size > 0) return blob;
                 }
             } catch (e) {
-                // หากติด CORS ให้ลองวิธีถัดไป
+                // หากติด CORS ให้ดึงผ่าน Apps Script Proxy
             }
 
-            // 2. ดึงภาพผ่าน Proxy (Google Apps Script)
             if (photo.id) {
                 try {
                     const proxyUrl = `${googleScriptUrl}?action=getPhotoBlob&fileId=${encodeURIComponent(photo.id)}`;
@@ -1165,7 +1163,6 @@
                 }
             }
 
-            // 3. ใช้ Canvas อ่านข้อมูลภาพถ้าดึง 2 วิธีแรกไม่ได้
             return new Promise((resolve) => {
                 const img = new Image();
                 img.crossOrigin = "Anonymous";
@@ -1220,45 +1217,97 @@
             const btn = document.getElementById('btnTriggerSaveGallery');
             const btnText = document.getElementById('btnSaveText');
 
-            // กรณีดาวน์โหลดเพียง 1 รูป ให้สั่งดาวน์โหลดเป็นไฟล์รูปภาพตรง
-            if (count === 1) {
-                const p = photosToSaveToGallery[0];
-                statusText.innerText = `กำลังดาวน์โหลดรูป 1/1`;
-                progressBar.style.width = `100%`;
+            // ตรวจสอบว่าเปิดผ่านอุปกรณ์มือถือหรือไม่
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-                const blob = await fetchImageBlob(p);
-                if (blob) {
-                    triggerBlobDownload(blob, p.name || `Studio_Photo_1.jpg`);
+            if (isMobile) {
+                // ==================== [โค้ดฟังก์ชันเดิมสำหรับมือถือ] ====================
+                const isMobileShareSupported = !!navigator.canShare;
+
+                if (isMobileShareSupported && count > 1) {
+                    // มือถือดาวน์โหลดหลายรูป: ดึงไฟล์รูปภาพเพื่อเตรียมใช้ Native Share API บันทึกลงเครื่อง/แกลเลอรี
+                    const fileList = [];
+                    for (let i = 0; i < count; i++) {
+                        const p = photosToSaveToGallery[i];
+                        statusText.innerText = `กำลังเตรียมรูป ${i + 1}/${count}`;
+                        progressBar.style.width = `${Math.round(((i + 1) / count) * 100)}%`;
+
+                        const blob = await fetchImageBlob(p);
+                        if (blob) {
+                            const file = new File([blob], p.name || `Photo_${i + 1}.jpg`, { type: 'image/jpeg' });
+                            fileList.push(file);
+                        }
+                    }
+
+                    if (fileList.length > 0 && navigator.canShare({ files: fileList })) {
+                        try {
+                            await navigator.share({
+                                files: fileList,
+                                title: 'บันทึกรูปภาพสตูดิโอ'
+                            });
+                        } catch (e) {
+                            console.log('Share canceled or error', e);
+                        }
+                    }
                 } else {
-                    triggerHiddenIframeDownload(p.downloadUrl || p.url);
-                }
-            } else {
-                // กรณีเลือกหลายรูป รวมไฟล์ลง ZIP
-                const zip = new JSZip();
-                const folderName = document.getElementById('customerAlbumTitle').innerText || '037Studio_Photos';
-                let addedFilesCount = 0;
+                    // มือถือโหลดรูปเดียว หรือเบราว์เซอร์ไม่รองรับ Native Share
+                    for (let i = 0; i < count; i++) {
+                        const p = photosToSaveToGallery[i];
+                        statusText.innerText = `กำลังดาวน์โหลดรูป ${i + 1}/${count}`;
+                        progressBar.style.width = `${Math.round(((i + 1) / count) * 100)}%`;
 
-                for (let i = 0; i < count; i++) {
-                    const p = photosToSaveToGallery[i];
-                    statusText.innerText = `กำลังดึงรูปภาพ (${i + 1}/${count})`;
-                    progressBar.style.width = `${Math.round(((i + 1) / count) * 80)}%`;
+                        const blob = await fetchImageBlob(p);
+                        if (blob) {
+                            triggerBlobDownload(blob, p.name || `Studio_Photo_${i + 1}.jpg`);
+                        } else {
+                            triggerHiddenIframeDownload(p.downloadUrl || p.url);
+                        }
 
-                    const blob = await fetchImageBlob(p);
-                    if (blob && blob.size > 0) {
-                        const fileName = p.name || `Photo_${i + 1}.jpg`;
-                        zip.file(fileName, blob);
-                        addedFilesCount++;
+                        if (count > 1) {
+                            await new Promise(r => setTimeout(r, 400));
+                        }
                     }
                 }
+            } else {
+                // ==================== [โค้ดไฟล์ ZIP สำหรับคอมพิวเตอร์] ====================
+                if (count === 1) {
+                    const p = photosToSaveToGallery[0];
+                    statusText.innerText = `กำลังดาวน์โหลดรูป 1/1`;
+                    progressBar.style.width = `100%`;
 
-                if (addedFilesCount > 0) {
-                    statusText.innerText = `กำลังบีบอัดไฟล์ ZIP...`;
-                    progressBar.style.width = `90%`;
-
-                    const zipBlob = await zip.generateAsync({ type: "blob" });
-                    triggerBlobDownload(zipBlob, `${folderName}.zip`);
+                    const blob = await fetchImageBlob(p);
+                    if (blob) {
+                        triggerBlobDownload(blob, p.name || `Studio_Photo_1.jpg`);
+                    } else {
+                        triggerHiddenIframeDownload(p.downloadUrl || p.url);
+                    }
                 } else {
-                    alert("ไม่สามารถดึงข้อมูลรูปภาพเพื่อสร้างไฟล์ ZIP ได้ กรุณาลองใหม่อีกครั้ง");
+                    const zip = new JSZip();
+                    const folderName = document.getElementById('customerAlbumTitle').innerText || '037Studio_Photos';
+                    let addedFilesCount = 0;
+
+                    for (let i = 0; i < count; i++) {
+                        const p = photosToSaveToGallery[i];
+                        statusText.innerText = `กำลังดึงรูปภาพเข้า ZIP (${i + 1}/${count})`;
+                        progressBar.style.width = `${Math.round(((i + 1) / count) * 80)}%`;
+
+                        const blob = await fetchImageBlob(p);
+                        if (blob && blob.size > 0) {
+                            const fileName = p.name || `Photo_${i + 1}.jpg`;
+                            zip.file(fileName, blob);
+                            addedFilesCount++;
+                        }
+                    }
+
+                    if (addedFilesCount > 0) {
+                        statusText.innerText = `กำลังบีบอัดไฟล์ ZIP...`;
+                        progressBar.style.width = `90%`;
+
+                        const zipBlob = await zip.generateAsync({ type: "blob" });
+                        triggerBlobDownload(zipBlob, `${folderName}.zip`);
+                    } else {
+                        alert("ไม่สามารถดึงข้อมูลรูปภาพเพื่อสร้างไฟล์ ZIP ได้ กรุณาลองใหม่อีกครั้ง");
+                    }
                 }
             }
 
@@ -1266,7 +1315,7 @@
             photosToSaveToGallery.forEach(p => p.downloaded = true);
             saveCurrentPhotos();
 
-            statusText.innerText = count === 1 ? `ดาวน์โหลดรูปภาพสำเร็จ` : `สร้างไฟล์ ZIP เรียบร้อยแล้ว`;
+            statusText.innerText = count === 1 ? `ดาวน์โหลดรูปภาพสำเร็จ` : (isMobile ? `ดาวน์โหลดสำเร็จ (${count} รูป)` : `สร้างไฟล์ ZIP เรียบร้อยแล้ว`);
             spinner.className = "fa-solid fa-circle-check text-emerald-500 text-lg";
             progressBar.style.width = "100%";
 
