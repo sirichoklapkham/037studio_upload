@@ -297,7 +297,7 @@
         </div>
     </div>
 
-    <!-- Save / Download Progress Modal (ปรับแต่งให้ตรงตามวิดีโอตัวอย่าง) -->
+    <!-- Save / Download Progress Modal -->
     <div id="modalSaveToGallery" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white text-slate-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4 relative text-center">
             <button onclick="closeSaveGalleryModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1">
@@ -306,14 +306,14 @@
 
             <div>
                 <h3 class="text-base font-bold text-slate-900">ดาวน์โหลดรูปที่เลือก</h3>
-                <p id="saveModalPhotoCount" class="text-xs text-slate-500 mt-0.5">6 รูป</p>
+                <p id="saveModalPhotoCount" class="text-xs text-slate-500 mt-0.5">0 รูป</p>
             </div>
 
             <!-- Progress Status Container -->
             <div id="saveModalBanner" class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
                 <div id="saveModalStatusContainer" class="flex items-center justify-center gap-2 text-xs font-semibold text-slate-700">
                     <i id="saveModalSpinner" class="fa-solid fa-spinner fa-spin text-sky-600 text-base"></i>
-                    <span id="saveModalStatusText">กำลังดาวน์โหลดรูป 0/6</span>
+                    <span id="saveModalStatusText">กำลังดาวน์โหลดรูป 0/0</span>
                 </div>
                 <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                     <div id="saveModalProgressBar" class="bg-emerald-500 h-2 rounded-full w-0 transition-all duration-300"></div>
@@ -1078,7 +1078,7 @@
             grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
         }
 
-        // ================= SAVE / DOWNLOAD PROCESS (แก้ไขปรับปรุงให้ดาวน์โหลดได้ 100% พร้อมหน่วงเวลาและ Blob) =================
+        // ================= SAVE / DOWNLOAD PROCESS (แก้ไขปรับปรุงไม่ให้เปิดแท็บใหม่ / เด้งไป Google Drive) =================
         function downloadSinglePhoto(photoId, event) {
             if (event) event.stopPropagation();
             const photo = photos.find(p => p.id === photoId);
@@ -1129,7 +1129,7 @@
             closeModal('modalSaveToGallery');
         }
 
-        // แปลง URL รูปภาพให้เป็น Blob ป้องกันการเปิดแท็บใหม่ และช่วยให้สั่งโหลดได้ชัวร์ 100%
+        // แปลง URL รูปภาพให้เป็น Blob Buffer ป้องกันการเปลี่ยนหน้าเว็บหรือเปิดแท็บใหม่
         async function fetchImageBlob(imgUrl) {
             try {
                 const response = await fetch(imgUrl, { mode: 'cors' });
@@ -1156,7 +1156,7 @@
             }
         }
 
-        // ฟังก์ชันสั่งดาวน์โหลด Blob เข้าเครื่อง
+        // ฟังก์ชันสั่งดาวน์โหลด Blob เข้าเครื่องโดยตรง
         function triggerBlobDownload(blob, filename) {
             const blobUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -1183,7 +1183,7 @@
                                            && navigator.canShare;
 
             if (isMobileShareSupported) {
-                // กรณีมือถือ: ใช้ Web Share API แชร์รูปพร้อมกันลงแกลเลอรี
+                // กรณีมือถือ: ใช้ Web Share API บันทึกรูปพร้อมกัน
                 const fileList = [];
                 for (let i = 0; i < count; i++) {
                     const p = photosToSaveToGallery[i];
@@ -1208,7 +1208,7 @@
                     }
                 }
             } else {
-                // กรณีคอมพิวเตอร์ (Desktop): วนลูปดาวน์โหลดรูปภาพลงเครื่องทีละรูป พร้อมหน่วงเวลา 400ms ป้องกันการบล็อก[cite: 18, 19]
+                // กรณีคอมพิวเตอร์ (Desktop): วนลูปดาวน์โหลดรูปภาพผ่าน Blob ทีละไฟล์ พร้อมหน่วงเวลา 400ms[cite: 18, 19]
                 for (let i = 0; i < count; i++) {
                     const p = photosToSaveToGallery[i];
                     statusText.innerText = `กำลังดาวน์โหลดรูป ${i + 1}/${count}`;
@@ -1218,17 +1218,16 @@
                     if (blob) {
                         triggerBlobDownload(blob, p.name || `Studio_Photo_${i + 1}.jpg`);
                     } else {
-                        // กรณีฉุกเฉิน เปิดลิงก์ดาวน์โหลดตรง
+                        // กรณีสำรอง สั่งดาวน์โหลดผ่าน Element ชั่วคราวโดยไม่เปิดแท็บใหม่
                         const link = document.createElement('a');
                         link.href = p.downloadUrl || p.url;
-                        link.target = '_blank';
                         link.download = p.name || `Studio_Photo_${i + 1}.jpg`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                     }
 
-                    // หน่วงเวลา 400ms เพื่อให้เบราว์เซอร์เปิดให้ดาวน์โหลดหลายไฟล์ได้สำเร็จ ไม่โดนบล็อก[cite: 18, 19]
+                    // หน่วงเวลา 400ms ให้ระบบดาวน์โหลดแต่ละไฟล์จนครบ[cite: 18, 19]
                     await new Promise(r => setTimeout(r, 400));
                 }
             }
@@ -1237,7 +1236,7 @@
             photosToSaveToGallery.forEach(p => p.downloaded = true);
             saveCurrentPhotos();
 
-            // อัปเดตสถานะใน Modal เป็นดาวน์โหลดเสร็จสิ้น (แสดงติ๊กถูกสีเขียวแบบในวิดีโอ)[cite: 19]
+            // อัปเดตสถานะใน Modal เป็นดาวน์โหลดเสร็จสิ้น[cite: 19]
             statusText.innerText = `ดาวน์โหลดเสร็จสิ้น ${count} รูป`;
             spinner.className = "fa-solid fa-circle-check text-emerald-500 text-lg";
             progressBar.style.width = "100%";
