@@ -1,0 +1,1891 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full bg-[#071320]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>037Studio - AI Photo Delivery</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter & Prompt -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- QRCode.js Library CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            950: '#071320',
+                            900: '#0e2238',
+                            800: '#133050',
+                            700: '#1c426c',
+                            600: '#27588f',
+                            500: '#3472b5',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #071320;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1c426c;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #27588f;
+        }
+    </style>
+</head>
+<body class="h-full text-slate-100 flex flex-col justify-between selection:bg-navy-500 selection:text-white relative">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-[#0a1b2d] border-b border-slate-800 sticky top-0 z-30 px-4 py-2.5 flex items-center justify-between text-xs sm:text-sm min-h-[46px]">
+        <div class="flex items-center space-x-2 cursor-pointer" onclick="goToAdminDashboard()">
+            <span class="font-bold tracking-wide text-amber-400 font-mono text-base"><i class="fa-solid fa-camera mr-1.5"></i>037STUDIO</span>
+        </div>
+        
+        <!-- View Switcher Toggle -->
+        <div id="viewSwitcherContainer" class="flex items-center space-x-1 bg-navy-950 p-1 rounded-full border border-slate-700/60">
+            <button id="btnModeAdmin" onclick="switchMode('admin')" class="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-navy-600 text-white shadow-sm">
+                <i class="fa-solid fa-user-gear text-[10px] mr-1"></i> แอดมิน
+            </button>
+            <button id="btnModeCustomer" onclick="switchMode('customer')" class="px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:text-white transition-all duration-200">
+                <i class="fa-solid fa-user text-[10px] mr-1"></i> ลูกค้า
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content View -->
+    <main class="flex-1 overflow-y-auto pb-28 max-w-5xl w-full mx-auto px-3 sm:px-6 pt-4">
+
+        <!-- ================= ADMIN VIEW ================= -->
+        <section id="adminView" class="space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-navy-900 via-navy-800 to-navy-900 p-5 rounded-2xl border border-slate-700">
+                <div>
+                    <span class="bg-amber-500/20 text-amber-400 text-xs font-semibold px-3 py-1 rounded-full border border-amber-500/30 tracking-wide">
+                        037Studio
+                    </span>
+                    <h2 class="text-xl font-bold text-white mt-2">อัลบั้มภาพถ่ายลูกค้าทั้งหมด</h2>
+                    <p class="text-xs text-slate-400">เลือกอัลบั้มเพื่อเพิ่มรูปภาพ ส่งลิงก์ให้ลูกค้า หรือกำหนดวันลบอัตโนมัติ</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="fetchAlbumsFromDrive()" class="px-3 py-2.5 bg-navy-800 hover:bg-navy-700 text-sky-400 border border-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>ดึงข้อมูลซิงค์</span>
+                    </button>
+                    <button onclick="openCreateAlbumModal()" class="w-full sm:w-auto px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition shadow-lg shadow-sky-900">
+                        <i class="fa-solid fa-folder-plus text-sm"></i>
+                        <span>สร้างอัลบั้มลูกค้าใหม่</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-navy-900 p-4 rounded-xl border border-slate-800 space-y-3">
+                <div class="flex items-center justify-between cursor-pointer" onclick="toggleSettingsPanel()">
+                    <span class="text-xs font-bold text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-gear text-sky-400"></i> ตั้งค่าระบบ Google Drive & Google Sheets
+                    </span>
+                    <i id="iconSettingsChevron" class="fa-solid fa-chevron-down text-slate-500 text-xs"></i>
+                </div>
+                <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
+                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycby7sEE1dP2ita29ejmYNK-QNgQdctdUcF65NqLlhnYaSij9yPcv7eaCJAqJUn3Am_s5/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px] focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
+                        <input type="text" id="inputDriveFolderId" value="1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-[11px]">
+                    </div>
+                    <button onclick="saveDriveSettings()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs">
+                        บันทึกการตั้งค่า
+                    </button>
+                </div>
+            </div>
+
+            <div id="adminAlbumGridSection" class="space-y-4">
+                <h3 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <i class="fa-solid fa-boxes-stacked text-sky-400"></i>
+                    <span>รายการอัลบั้มทั้งหมด (<span id="totalAlbumCount">0</span> อัลบั้ม)</span>
+                </h3>
+                <div id="adminAlbumGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+            </div>
+
+            <div id="adminSingleAlbumSection" class="hidden space-y-5 border-t border-slate-800 pt-5">
+                <div class="flex items-center justify-between">
+                    <button onclick="closeSingleAlbumAdmin()" class="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">
+                        <i class="fa-solid fa-arrow-left"></i> กลับไปหน้ารายการอัลบั้มทั้งหมด
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openShareModalCurrent()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs flex items-center gap-1.5 shadow">
+                            <i class="fa-solid fa-qrcode"></i> แชร์ให้ลูกค้า
+                        </button>
+                        <button onclick="deleteCurrentAlbum()" class="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-xs border border-rose-500/20">
+                            <i class="fa-regular fa-trash-can"></i> ลบอัลบั้ม
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-navy-900 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row justify-between gap-3">
+                    <div>
+                        <span id="adminActiveTitle" class="text-base font-bold text-white uppercase font-mono"></span>
+                        <p id="adminActiveSub" class="text-xs text-slate-400 mt-0.5"></p>
+                    </div>
+                    <div class="text-xs text-slate-400 space-y-1">
+                        <div><i class="fa-regular fa-clock mr-1 text-amber-400"></i> ลบอัตโนมัติใน: <span id="adminActiveExpire" class="text-amber-300 font-mono font-bold">กำลังคำนวณ...</span></div>
+                        <div><i class="fa-solid fa-images mr-1 text-sky-400"></i> รูปภาพทั้งหมด: <span id="adminActiveCount" class="text-white font-medium">0 รูป</span></div>
+                    </div>
+                </div>
+
+                <div class="bg-navy-900/90 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
+                    <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up text-sky-400"></i>
+                        <span>อัปโหลดรูปภาพเข้าอัลบั้มนี้ (Google Drive)</span>
+                    </h3>
+
+                    <div id="dropZone" onclick="document.getElementById('fileInput').click()" class="border-2 border-dashed border-slate-700 hover:border-sky-500 bg-navy-950/50 hover:bg-navy-950 rounded-xl p-6 text-center cursor-pointer transition group">
+                        <input type="file" id="fileInput" multiple accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                        <div class="w-12 h-12 bg-sky-500/10 text-sky-400 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition">
+                            <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                        </div>
+                        <p class="text-sm text-slate-200 font-medium">ลากรูปเพิ่มได้ที่นี่ หรือคลิกเพื่อเลือกรูปจากเครื่อง</p>
+                        <p class="text-xs text-slate-500 mt-1">JPEG, PNG, WEBP (อัปโหลดพร้อมกันหลายไฟล์ได้รวดเร็ว)</p>
+                    </div>
+                </div>
+
+                <div id="adminPhotoGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
+            </div>
+
+        </section>
+
+        <!-- ================= CUSTOMER GALLERY VIEW ================= -->
+        <section id="customerView" class="hidden space-y-4 relative">
+            
+            <div class="bg-gradient-to-b from-[#15365a] to-[#0e243e] rounded-2xl p-5 border border-slate-700/50 shadow-xl text-center relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl"></div>
+                <div class="inline-flex items-center px-3 py-1 rounded-full bg-slate-900/60 border border-slate-700 text-xs text-sky-400 mb-2">
+                    <i class="fa-solid fa-camera-retro mr-1.5"></i> สตูดิโอแกลเลอรี (ลูกค้า)
+                </div>
+                <h1 id="customerAlbumTitle" class="text-lg sm:text-2xl font-bold tracking-wider text-white uppercase font-mono"></h1>
+                <p id="customerAlbumSub" class="text-xs text-slate-400 mt-1">รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว</p>
+
+                <div class="mt-3 bg-amber-500/15 border border-amber-500/30 rounded-xl p-2.5 max-w-md mx-auto text-xs text-amber-300 flex items-center justify-center gap-2">
+                    <i class="fa-regular fa-clock text-amber-400 text-sm"></i>
+                    <span>ระบบจะทำการลบรูปภาพอัตโนมัติใน: <strong id="customerExpireText" class="text-amber-300 font-mono font-bold">กำลังคำนวณ...</strong></span>
+                </div>
+
+                <div id="customerLoadingBanner" class="mt-3 bg-sky-500/20 border border-sky-500/30 rounded-xl p-2.5 max-w-md mx-auto text-xs text-sky-300 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-spinner fa-spin text-sky-400"></i>
+                    <span>กำลังดึงข้อมูลรูปภาพจาก Google Drive...</span>
+                </div>
+
+                <div class="mt-3 flex items-center justify-center space-x-4 text-xs text-slate-300 bg-navy-950/60 py-2 px-4 rounded-xl max-w-sm mx-auto border border-slate-800">
+                    <div>รูปทั้งหมด: <span id="totalPhotosCount" class="font-bold text-white">0</span></div>
+                    <div class="w-px h-3 bg-slate-700"></div>
+                    <div>ดาวน์โหลดแล้ว: <span id="downloadedPhotosCount" class="font-bold text-emerald-400">0</span></div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 py-1">
+                <div class="flex items-center gap-2">
+                    <button id="btnSelectToggle" onclick="toggleSelectMode()" class="px-3.5 py-1.5 rounded-full bg-navy-800 hover:bg-navy-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-2 transition">
+                        <i class="fa-regular fa-circle" id="iconSelectToggle"></i>
+                        <span id="textSelectToggle">เลือกรูปภาพ</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="downloadAllPhotos()" class="px-3.5 py-1.5 rounded-full bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium flex items-center gap-1.5 transition shadow-lg shadow-sky-950">
+                        <i class="fa-solid fa-cloud-arrow-down"></i>
+                        <span>ดาวน์โหลดทั้งหมด</span>
+                    </button>
+
+                    <div class="bg-navy-900 rounded-lg p-0.5 border border-slate-700 flex items-center">
+                        <button onclick="setGridCols(2)" class="p-1.5 px-2 text-slate-400 hover:text-white rounded text-xs"><i class="fa-solid fa-table-cells-large"></i></button>
+                        <button onclick="setGridCols(3)" class="p-1.5 px-2 text-slate-400 hover:text-white rounded text-xs hidden sm:block"><i class="fa-solid fa-border-all"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FLOATING DOWNLOAD SELECTED BUTTON -->
+            <div id="floatingDownloadBar" class="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 hidden transition-all duration-300">
+                <button id="btnDownloadSelected" onclick="downloadSelectedPhotos()" class="px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2 transition shadow-2xl border border-emerald-400/30 animate-bounce">
+                    <i class="fa-solid fa-download text-sm"></i>
+                    <span>ดาวน์โหลดที่เลือก (<span id="selectedCount">0</span>)</span>
+                </button>
+            </div>
+
+            <div id="photosGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4"></div>
+
+            <div id="emptyCustomerState" class="hidden text-center py-16 bg-navy-900/40 rounded-2xl border border-dashed border-slate-800">
+                <i class="fa-regular fa-images text-4xl text-slate-600 mb-3"></i>
+                <p class="text-slate-400 text-sm">ยังไม่มีรูปภาพในอัลบั้มนี้</p>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Bottom Nav Bar -->
+    <div id="bottomNav" class="fixed bottom-0 left-0 right-0 z-30 flex justify-center pb-3 px-4 pointer-events-none">
+        <nav class="pointer-events-auto bg-[#133050]/90 backdrop-blur-md border border-slate-600/50 rounded-full py-2 px-6 flex items-center justify-around max-w-xs w-full shadow-2xl text-slate-300">
+            <button class="flex flex-col items-center gap-0.5 text-sky-400 font-medium">
+                <i class="fa-regular fa-image text-lg"></i>
+                <span class="text-[10px]">อัลบั้ม</span>
+                <span class="w-4 h-0.5 bg-sky-400 rounded-full mt-0.5"></span>
+            </button>
+            <button onclick="openDriveTutorialModal()" class="flex flex-col items-center gap-0.5 hover:text-white transition text-emerald-400">
+                <i class="fa-brands fa-google-drive text-lg"></i>
+                <span class="text-[10px] font-semibold">ดาวน์โหลดใน GoogleDrive</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- FLOATING UPLOAD PROGRESS POPUP WIDGET -->
+    <div id="uploadProgressWidget" class="fixed bottom-5 right-5 z-50 w-80 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 hidden transition-all duration-300 overflow-hidden">
+        <div class="bg-slate-100 px-4 py-3 flex items-center justify-between border-b border-slate-200">
+            <div class="flex items-center gap-2">
+                <i id="widgetHeaderIcon" class="fa-solid fa-spinner fa-spin text-emerald-600"></i>
+                <span id="widgetTitle" class="text-xs font-bold text-slate-800">ส่งเรียบร้อยแล้ว 0/0 รูป</span>
+            </div>
+            <div class="flex items-center gap-2 text-slate-500">
+                <button onclick="toggleUploadWidgetCollapse()" class="hover:text-slate-800 p-1">
+                    <i id="btnWidgetCollapseIcon" class="fa-solid fa-chevron-down text-xs"></i>
+                </button>
+                <button onclick="closeUploadWidget()" class="hover:text-slate-800 p-1">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+        </div>
+        <div id="uploadWidgetList" class="max-h-60 overflow-y-auto p-2 space-y-2 text-xs divide-y divide-slate-100"></div>
+    </div>
+
+    <!-- Drive Tutorial Modal -->
+    <div id="modalDriveTutorial" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white text-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
+            <button onclick="closeModal('modalDriveTutorial')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <div class="text-center space-y-1 border-b border-slate-100 pb-3">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-inner">
+                    <i class="fa-brands fa-google-drive"></i>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 pt-1">ดาวน์โหลดภาพผ่าน Google Drive</h3>
+                <p class="text-xs text-slate-500">คำแนะนำเพื่อดาวน์โหลดไฟล์ได้เร็วเต็มความละเอียด</p>
+            </div>
+            <div class="space-y-2">
+                <button onclick="openCurrentAlbumDriveLink()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition">
+                    <i class="fa-brands fa-google-drive text-base"></i>
+                    <span>เปิดอัลบั้มนี้บน Google Drive</span>
+                </button>
+                <button onclick="closeModal('modalDriveTutorial')" class="w-full py-2.5 text-xs text-slate-400 hover:text-slate-600 font-medium">ปิดหน้าต่างนี้</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save / Download Progress Modal -->
+    <div id="modalSaveToGallery" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white text-slate-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4 relative text-center">
+            <button onclick="closeSaveGalleryModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div>
+                <h3 class="text-base font-bold text-slate-900">ดาวน์โหลดรูปที่เลือก</h3>
+                <p id="saveModalPhotoCount" class="text-xs text-slate-500 mt-0.5">0 รูป</p>
+            </div>
+
+            <!-- Progress Status Container -->
+            <div id="saveModalBanner" class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                <div id="saveModalStatusContainer" class="flex items-center justify-center gap-2 text-xs font-semibold text-slate-700">
+                    <i id="saveModalSpinner" class="fa-solid fa-spinner fa-spin text-sky-600 text-base"></i>
+                    <span id="saveModalStatusText">กำลังดาวน์โหลดรูป 0/0</span>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div id="saveModalProgressBar" class="bg-emerald-500 h-2 rounded-full w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+
+            <p id="saveModalInstructions" class="text-[11px] text-slate-500 leading-relaxed px-1">
+                หากขึ้นแจ้งเตือนให้กดอนุญาต <strong class="text-slate-700">"ดาวน์โหลดหลายไฟล์"</strong> เพื่อบันทึกรูปทั้งหมดลงเครื่อง
+            </p>
+
+            <button id="btnTriggerSaveGallery" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer">
+                <span id="btnSaveText">ปิด</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Create Album Modal -->
+    <div id="modalCreateAlbum" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-navy-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-folder-plus text-sky-400"></i> สร้างอัลบั้มลูกค้าใหม่
+                </h3>
+                <button onclick="closeModal('modalCreateAlbum')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-300 mb-1">ชื่ออัลบั้ม / รหัสงานลูกค้า</label>
+                    <input type="text" id="inputAlbumTitle" class="w-full bg-navy-950 border border-slate-700 rounded-xl p-3 text-white text-sm">
+                </div>
+                <div>
+                    <label class="block text-slate-300 mb-1">คำอธิบายเพิ่มเติม</label>
+                    <input type="text" id="inputAlbumSub" class="w-full bg-navy-950 border border-slate-700 rounded-xl p-3 text-white text-sm">
+                </div>
+                <div>
+                    <label class="block text-slate-300 mb-1">ระยะเวลาจัดเก็บก่อนลบอัตโนมัติ</label>
+                    <select id="inputAlbumExpireDays" class="w-full bg-navy-950 border border-slate-700 rounded-xl p-3 text-white text-sm">
+                        <option value="3">3 วัน</option>
+                        <option value="7" selected>7 วัน (แนะนำ)</option>
+                        <option value="15">15 วัน</option>
+                        <option value="30">30 วัน</option>
+                        <option value="0">ไม่ลบอัตโนมัติ</option>
+                        <option value="0.000694">1 นาที (สำหรับทดสอบ)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('modalCreateAlbum')" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs">ยกเลิก</button>
+                <button onclick="saveNewAlbum()" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs">บันทึกสร้างอัลบั้ม</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHARE & QR CODE MODAL -->
+    <div id="modalShare" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white text-slate-800 w-full max-w-xl rounded-3xl p-6 shadow-2xl relative max-h-[92vh] overflow-y-auto space-y-4">
+            <button onclick="closeModal('modalShare')" class="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">แชร์อัลบั้มให้ลูกค้า</h3>
+                <p class="text-xs text-slate-500">สแกน QR Code หรือคัดลอกข้อความ/ลิงก์ส่งให้ลูกค้าได้ทันที</p>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-stretch justify-center bg-slate-50 p-4 rounded-2xl border border-slate-200 gap-4">
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center shrink-0">
+                    <div id="qrcodeCanvas"></div>
+                    <button onclick="downloadQRCodeImage()" class="mt-2 text-[11px] text-sky-600 font-semibold hover:underline flex items-center gap-1">
+                        <i class="fa-solid fa-download"></i> โหลด QR Code
+                    </button>
+                </div>
+
+                <div class="w-full flex-1 space-y-3">
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-600 block mb-1 flex items-center gap-1">
+                            <i class="fa-solid fa-link text-sky-500"></i> ลิงก์อัลบั้ม (เฉพาะ URL):
+                        </label>
+                        <div class="flex items-center bg-white border border-slate-300 rounded-xl p-1.5 pl-3 shadow-inner gap-2">
+                            <input type="text" id="shareOnlyUrlInput" readonly class="text-xs text-sky-600 font-mono font-medium truncate flex-1 bg-transparent focus:outline-none">
+                            <button onclick="copyOnlyAlbumUrl()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-sm shrink-0">
+                                <i class="fa-regular fa-copy"></i> คัดลอกลิงก์
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-comment-dots text-sky-600"></i> ข้อความพร้อมส่งให้ลูกค้า
+                        </label>
+                        <div class="flex items-center gap-1">
+                            <button id="btnEditShareMsg" onclick="toggleEditShareMessage()" class="text-[11px] text-slate-500 hover:text-sky-600 px-2 py-0.5 rounded bg-slate-200/60 transition">
+                                <i class="fa-solid fa-pen-to-square"></i> แก้ไขข้อความ
+                            </button>
+                            <button id="btnResetShareMsg" onclick="resetDefaultShareMessage()" class="hidden text-[11px] text-slate-500 hover:text-rose-600 px-2 py-0.5 rounded bg-slate-200/60 transition">
+                                <i class="fa-solid fa-rotate-left"></i> คืนค่าเดิม
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="relative">
+                        <textarea id="shareFullMessageTextarea" readonly class="w-full h-32 bg-white border border-slate-300 rounded-xl p-3 text-xs text-slate-800 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none shadow-inner"></textarea>
+                    </div>
+
+                    <button onclick="copyFullShareMessage()" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition">
+                        <i class="fa-solid fa-copy text-sm"></i>
+                        <span>คัดลอกข้อความทั้งหมดพร้อมลิงก์</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-100 pt-3 flex justify-end">
+                <button onclick="closeModal('modalShare')" class="px-5 py-2 bg-slate-100 text-slate-700 font-medium text-xs rounded-xl hover:bg-slate-200">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal (ปรับขนาดภาพให้พอดีหน้าจอไม่ใหญ่เกินไป) -->
+    <div id="modalLightbox" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4 backdrop-blur-md">
+        <div class="flex justify-between items-center text-white p-2">
+            <span id="lightboxIndex" class="font-mono text-xs bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">1 / 1</span>
+            <button onclick="closeModal('modalLightbox')" class="text-xl text-slate-400 hover:text-white w-9 h-9 rounded-full bg-slate-800/80 flex items-center justify-center transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        
+        <!-- Frame แสดงรูปถูกจำกัดขนาดกะทัดรัดพอดีสายตา -->
+        <div class="flex-1 flex items-center justify-center p-2 relative overflow-hidden" id="lightboxContainer">
+            <img id="lightboxImg" src="" class="max-h-[80vh] max-w-[90vw] sm:max-w-[80vw] object-contain rounded-lg shadow-2xl border border-slate-800 transition-all duration-200">
+        </div>
+
+        <div class="flex items-center justify-center gap-4 text-xs py-2">
+            <button onclick="prevLightboxPhoto()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-full flex items-center gap-2 transition border border-slate-700">
+                <i class="fa-solid fa-chevron-left"></i> ภาพก่อนหน้า
+            </button>
+            <button onclick="downloadSingleCurrentPhoto()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-full flex items-center gap-2 transition shadow-lg shadow-sky-950">
+                <i class="fa-solid fa-download"></i> โหลดรูปนี้
+            </button>
+            <button onclick="nextLightboxPhoto()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-full flex items-center gap-2 transition border border-slate-700">
+                ภาพถัดไป <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-14 left-1/2 -translate-x-1/2 z-50 hidden transition-all duration-300">
+        <div class="bg-navy-800 text-white border border-slate-600 px-4 py-2.5 rounded-full shadow-2xl text-xs flex items-center gap-2">
+            <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+            <span id="toastMsg">บันทึกข้อมูลเรียบร้อย</span>
+        </div>
+    </div>
+
+    <!-- ================= APP LOGIC JAVASCRIPT ================= -->
+    <script>
+        let DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwuZUs2fPdI2RbU-2bDzV04JN0HRKLpArqZHPaFopFSmkTgAji9y0kDBu9xZt95l_5v/exec";
+        let googleScriptUrl = DEFAULT_SCRIPT_URL;
+        let parentDriveFolderId = "1qgyGCpc8reuyON4vtzcZTR6mGixZhUMb";
+
+        let currentMode = 'admin';
+        let isCustomerSharedLink = false;
+        let currentAlbumId = '';
+        let currentFolderIdParam = '';
+        let albums = [];
+        let photos = [];
+        let isSelectMode = false;
+        let selectedPhotoIds = new Set();
+        let currentLightboxPhotoId = null;
+        let photosToSaveToGallery = [];
+        let isEditingShareMsg = false;
+        let countdownTimerInterval = null;
+
+        let isWidgetCollapsed = false;
+        let totalUploadCount = 0;
+        let completedUploadCount = 0;
+        let isSavingProcessActive = false;
+
+        const DEFAULT_SHARE_TEMPLATE = `📸 037Studio - รูปถ่ายของคุณพร้อมแล้วครับ!
+
+สวัสดีครับลูกค้ารูปภาพของคุณเข้าสู่ระบบแกลเลอรีแล้ว สามารถคลิกดูและดาวน์โหลดรูปภาพความละเอียดสูงได้ที่ลิงก์ด้านล่างนี้เลยครับ:
+
+🔗 เข้าดูอัลบั้มรูปภาพ:
+{LINK}
+
+⏳ หมายเหตุ: {EXPIRE_INFO}
+ขอบคุณที่ใช้บริการ 037Studio ครับ ❤️`;
+
+        window.onload = async function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const albumParam = urlParams.get('album');
+            const folderParam = urlParams.get('folderId');
+            
+            loadStorageData();
+            setupDragAndDrop();
+            setupLightboxSwipe();
+
+            if (albumParam) {
+                isCustomerSharedLink = true;
+                currentAlbumId = decodeURIComponent(albumParam);
+                if (folderParam) {
+                    currentFolderIdParam = decodeURIComponent(folderParam);
+                }
+                
+                switchMode('customer');
+                
+                const viewSwitcher = document.getElementById('viewSwitcherContainer');
+                if (viewSwitcher) viewSwitcher.classList.add('hidden');
+                
+                await renderCustomerGallery();
+                startGlobalTimer();
+                return;
+            }
+
+            await fetchAlbumsFromDrive();
+            switchMode('admin');
+            startGlobalTimer();
+        };
+
+        function openDriveTutorialModal() {
+            openModal('modalDriveTutorial');
+        }
+
+        function openCurrentAlbumDriveLink() {
+            let targetFolderId = null;
+
+            const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
+            if (album && album.folderId) {
+                targetFolderId = album.folderId;
+            } else if (currentFolderIdParam) {
+                targetFolderId = currentFolderIdParam;
+            } else if (photos && photos.length > 0 && photos[0].folderId) {
+                targetFolderId = photos[0].folderId;
+            }
+
+            if (targetFolderId) {
+                window.open(`https://drive.google.com/drive/folders/${targetFolderId}`, '_blank');
+                return;
+            }
+
+            if (parentDriveFolderId) {
+                window.open(`https://drive.google.com/drive/folders/${parentDriveFolderId}`, '_blank');
+                return;
+            }
+
+            window.open(`https://drive.google.com/drive/my-drive`, '_blank');
+        }
+
+        // ================= TIMER & AUTO DELETE SYSTEM =================
+        function startGlobalTimer() {
+            if (countdownTimerInterval) clearInterval(countdownTimerInterval);
+            countdownTimerInterval = setInterval(updateAllCountdowns, 1000);
+            updateAllCountdowns();
+        }
+
+        function safeParseDate(dateInput) {
+            if (!dateInput) return null;
+            if (dateInput instanceof Date) return isNaN(dateInput.getTime()) ? null : dateInput;
+
+            let str = String(dateInput).trim();
+            let isoFormatted = str.replace(" ", "T");
+            let d = new Date(isoFormatted);
+            if (!isNaN(d.getTime())) return d;
+
+            let parts = str.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+            if (parts) {
+                return new Date(
+                    parseInt(parts[1], 10),
+                    parseInt(parts[2], 10) - 1,
+                    parseInt(parts[3], 10),
+                    parts[4] ? parseInt(parts[4], 10) : 0,
+                    parts[5] ? parseInt(parts[5], 10) : 0,
+                    parts[6] ? parseInt(parts[6], 10) : 0
+                );
+            }
+
+            return null;
+        }
+
+        function parseDateFromTitle(title) {
+            if (!title) return null;
+            const match = title.match(/(\d{2})\.(\d{2})\.(\d{2,4})(?:_(\d{2}):(\d{2}))?/);
+            if (match) {
+                const day = parseInt(match[1], 10);
+                const month = parseInt(match[2], 10) - 1;
+                let rawYear = parseInt(match[3], 10);
+                
+                let year = rawYear;
+                if (rawYear < 100) {
+                    year = (2500 + rawYear) - 543;
+                } else if (rawYear > 2500) {
+                    year = rawYear - 543;
+                }
+
+                const hours = match[4] ? parseInt(match[4], 10) : 0;
+                const minutes = match[5] ? parseInt(match[5], 10) : 0;
+
+                const parsed = new Date(year, month, day, hours, minutes, 0);
+                if (!isNaN(parsed.getTime())) return parsed;
+            }
+            return null;
+        }
+
+        function getCountdownInfo(album) {
+            if (!album) {
+                return { text: "ไม่ลบอัตโนมัติ", isExpired: false, totalSeconds: Infinity };
+            }
+
+            let expireDays = album.expireDays !== undefined ? parseFloat(album.expireDays) : null;
+            if (expireDays === 0) {
+                return { text: "ไม่ลบอัตโนมัติ", isExpired: false, totalSeconds: Infinity };
+            }
+
+            if (expireDays === null || isNaN(expireDays)) {
+                expireDays = 7;
+            }
+
+            let createdDate = null;
+            if (album.createdAt) {
+                createdDate = safeParseDate(album.createdAt);
+            }
+            if (!createdDate && album.title) {
+                createdDate = parseDateFromTitle(album.title);
+            }
+            if (!createdDate) {
+                createdDate = new Date();
+            }
+
+            let expireTime = createdDate.getTime() + (expireDays * 24 * 60 * 60 * 1000);
+            let now = new Date().getTime();
+            let diffSeconds = Math.floor((expireTime - now) / 1000);
+
+            if (diffSeconds <= 0) {
+                return { text: "หมดเวลา (กำลังลบ...)", isExpired: true, totalSeconds: 0 };
+            }
+
+            let days = Math.floor(diffSeconds / (24 * 3600));
+            let hours = Math.floor((diffSeconds % (24 * 3600)) / 3600);
+            let minutes = Math.floor((diffSeconds % 3600) / 60);
+            let seconds = diffSeconds % 60;
+
+            let text = "";
+            if (days > 0) text += `${days}วัน `;
+            if (hours > 0 || days > 0) text += `${hours}ชม. `;
+            text += `${minutes}นาที ${seconds}วิ`;
+
+            return { text: text, isExpired: false, totalSeconds: diffSeconds };
+        }
+
+        function updateAllCountdowns() {
+            let albumsToDelete = [];
+
+            albums.forEach(album => {
+                let info = getCountdownInfo(album);
+
+                let badgeEl = document.getElementById(`expire_badge_${album.id}`);
+                if (badgeEl) {
+                    badgeEl.innerText = info.text;
+                    if (info.isExpired) badgeEl.className = "absolute top-3 left-3 bg-rose-600 text-white px-2.5 py-1 rounded-full text-[10px] font-bold border border-rose-400 flex items-center gap-1 animate-pulse";
+                }
+
+                if (info.isExpired && !album.isDeleting) {
+                    album.isDeleting = true;
+                    albumsToDelete.push(album);
+                }
+            });
+
+            if (currentAlbumId && currentMode === 'admin') {
+                let curAlbum = albums.find(a => a.id === currentAlbumId);
+                let adminExpireEl = document.getElementById('adminActiveExpire');
+                if (curAlbum && adminExpireEl) {
+                    let info = getCountdownInfo(curAlbum);
+                    adminExpireEl.innerText = info.text;
+                }
+            }
+
+            if (currentAlbumId && currentMode === 'customer') {
+                let curAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
+                let custExpireEl = document.getElementById('customerExpireText');
+                if (custExpireEl && curAlbum) {
+                    let info = getCountdownInfo(curAlbum);
+                    custExpireEl.innerText = info.text;
+                    if (info.isExpired) {
+                        custExpireEl.innerText = "อัลบั้มนี้หมดอายุและถูกลบแล้ว";
+                    }
+                }
+            }
+
+            albumsToDelete.forEach(album => {
+                executeAutoDeleteAlbum(album);
+            });
+        }
+
+        async function executeAutoDeleteAlbum(album) {
+            showToast(`อัลบั้ม "${album.title}" หมดเวลาแล้ว กำลังทำการลบอัตโนมัติ...`, 'warning');
+
+            try {
+                await fetch(googleScriptUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'deleteAlbum',
+                        albumTitle: album.title,
+                        parentFolderId: parentDriveFolderId
+                    })
+                });
+            } catch (err) {
+                console.log('Auto delete album error', err);
+            }
+
+            albums = albums.filter(a => a.id !== album.id);
+            localStorage.removeItem(`sikram_photos_${album.id}`);
+            saveAlbums();
+
+            if (currentAlbumId === album.id) {
+                if (currentMode === 'admin') closeSingleAlbumAdmin();
+                else {
+                    document.getElementById('photosGrid').innerHTML = `
+                        <div class="col-span-full py-16 text-center text-rose-400 font-bold text-sm">
+                            <i class="fa-solid fa-clock-rotate-left text-3xl mb-2"></i>
+                            <p>อัลบั้มนี้หมดระยะเวลาจัดเก็บและถูกลบเรียบร้อยแล้ว</p>
+                        </div>
+                    `;
+                }
+            }
+
+            renderAdminDashboard();
+        }
+
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            if (!dropZone) return;
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.add('border-sky-400', 'bg-navy-900');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.remove('border-sky-400', 'bg-navy-900');
+                }, false);
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    uploadFilesProcess(files);
+                }
+            }, false);
+        }
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function loadStorageData() {
+            const savedUrl = localStorage.getItem('sikram_script_url');
+            if (savedUrl) {
+                googleScriptUrl = savedUrl;
+            } else {
+                googleScriptUrl = DEFAULT_SCRIPT_URL;
+            }
+            document.getElementById('inputScriptUrl').value = googleScriptUrl;
+
+            const savedFolder = localStorage.getItem('sikram_drive_folder');
+            if (savedFolder) parentDriveFolderId = savedFolder;
+            document.getElementById('inputDriveFolderId').value = parentDriveFolderId;
+
+            const savedAlbums = localStorage.getItem('sikram_albums');
+            if (savedAlbums) albums = JSON.parse(savedAlbums);
+        }
+
+        async function fetchAlbumsFromDrive() {
+            try {
+                const res = await fetch(`${googleScriptUrl}?action=getAlbums&parentFolderId=${parentDriveFolderId}`);
+                const data = await res.json();
+                if (data.status === 'success' && data.albums) {
+                    data.albums.forEach(driveAlbum => {
+                        let localMatch = albums.find(a => a.title === driveAlbum.title || a.id === driveAlbum.id);
+                        if (localMatch) {
+                            driveAlbum.createdAt = driveAlbum.createdAt || localMatch.createdAt;
+                            driveAlbum.expireDays = localMatch.expireDays !== undefined ? localMatch.expireDays : 7;
+                            if (localMatch.folderId) driveAlbum.folderId = localMatch.folderId;
+                            if (localMatch.folderUrl) driveAlbum.folderUrl = localMatch.folderUrl;
+                        } else {
+                            driveAlbum.createdAt = driveAlbum.createdAt || new Date().toISOString();
+                            driveAlbum.expireDays = 7;
+                        }
+                    });
+                    albums = data.albums;
+                    saveAlbums();
+                    if (currentMode === 'admin') {
+                        renderAdminDashboard();
+                        prefetchAllAlbumPhotos();
+                    }
+                }
+            } catch (err) {
+                console.log('Error fetching albums from drive', err);
+            }
+        }
+
+        async function prefetchAllAlbumPhotos() {
+            for (let album of albums) {
+                try {
+                    const res = await fetch(`${googleScriptUrl}?action=getPhotos&albumTitle=${encodeURIComponent(album.title)}&parentFolderId=${parentDriveFolderId}`);
+                    const data = await res.json();
+                    if (data.status === 'success' && data.photos) {
+                        localStorage.setItem(`sikram_photos_${album.id}`, JSON.stringify(data.photos));
+                        
+                        const coverImg = document.getElementById(`cover_img_${album.id}`);
+                        const countBadge = document.getElementById(`count_badge_${album.id}`);
+                        if (coverImg && data.photos.length > 0) {
+                            coverImg.src = data.photos[0].url;
+                        }
+                        if (countBadge) {
+                            countBadge.innerText = `${data.photos.length} รูป`;
+                        }
+                    }
+                } catch (e) {
+                    console.log('Prefetch error for', album.title);
+                }
+            }
+        }
+
+        async function fetchPhotosFromDrive(albumTitle) {
+            try {
+                const res = await fetch(`${googleScriptUrl}?action=getPhotos&albumTitle=${encodeURIComponent(albumTitle)}&parentFolderId=${parentDriveFolderId}`);
+                const data = await res.json();
+                if (data.status === 'success' && data.photos) {
+                    photos = data.photos;
+                    
+                    if (data.folderId || data.folderUrl) {
+                        let album = albums.find(a => a.id === currentAlbumId || a.title === albumTitle);
+                        if (album) {
+                            if (data.folderId) album.folderId = data.folderId;
+                            if (data.folderUrl) album.folderUrl = data.folderUrl;
+                            saveAlbums();
+                        }
+                        if (data.folderId) currentFolderIdParam = data.folderId;
+                    }
+                    saveCurrentPhotos();
+                }
+            } catch (err) {
+                console.log('Error fetching photos from drive', err);
+            }
+        }
+
+        function saveCurrentPhotos() {
+            if (!currentAlbumId) return;
+            localStorage.setItem(`sikram_photos_${currentAlbumId}`, JSON.stringify(photos));
+        }
+
+        function saveAlbums() {
+            localStorage.setItem('sikram_albums', JSON.stringify(albums));
+        }
+
+        function saveDriveSettings() {
+            googleScriptUrl = document.getElementById('inputScriptUrl').value.trim() || DEFAULT_SCRIPT_URL;
+            parentDriveFolderId = document.getElementById('inputDriveFolderId').value.trim();
+            localStorage.setItem('sikram_script_url', googleScriptUrl);
+            localStorage.setItem('sikram_drive_folder', parentDriveFolderId);
+            showToast('บันทึกการตั้งค่าระบบเรียบร้อย');
+            fetchAlbumsFromDrive();
+        }
+
+        function toggleSettingsPanel() {
+            document.getElementById('settingsPanel').classList.toggle('hidden');
+        }
+
+        function switchMode(mode) {
+            if (isCustomerSharedLink && mode === 'admin') return;
+
+            currentMode = mode;
+            const customerView = document.getElementById('customerView');
+            const adminView = document.getElementById('adminView');
+            const bottomNav = document.getElementById('bottomNav');
+
+            const btnCustomer = document.getElementById('btnModeCustomer');
+            const btnAdmin = document.getElementById('btnModeAdmin');
+
+            if (mode === 'customer') {
+                customerView.classList.remove('hidden');
+                adminView.classList.add('hidden');
+                bottomNav.classList.remove('hidden');
+
+                if (btnCustomer && btnAdmin) {
+                    btnCustomer.className = "px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-navy-600 text-white shadow-sm";
+                    btnAdmin.className = "px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:text-white transition-all duration-200";
+                }
+            } else {
+                customerView.classList.add('hidden');
+                adminView.classList.remove('hidden');
+                bottomNav.classList.add('hidden');
+
+                if (btnCustomer && btnAdmin) {
+                    btnAdmin.className = "px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-navy-600 text-white shadow-sm";
+                    btnCustomer.className = "px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:text-white transition-all duration-200";
+                }
+                renderAdminDashboard();
+            }
+        }
+
+        function goToAdminDashboard() {
+            if (isCustomerSharedLink) return;
+            closeSingleAlbumAdmin();
+            switchMode('admin');
+        }
+
+        // เปิดแกลเลอรี่ลูกค้าโดยตรงจากปุ่มในการ์ดอัลบั้ม
+        function openCustomerViewDirect(albumId, event) {
+            if (event) event.stopPropagation();
+            currentAlbumId = albumId;
+            switchMode('customer');
+            renderCustomerGallery();
+        }
+
+        // ================= ADMIN DASHBOARD (เพิ่มปุ่มเปิดแกลเลอรี่ลูกค้าตรงจุดที่วงสีแดง) =================
+        function renderAdminDashboard() {
+            const grid = document.getElementById('adminAlbumGrid');
+            document.getElementById('totalAlbumCount').innerText = albums.length;
+            grid.innerHTML = '';
+
+            albums.forEach(album => {
+                const albumPhotos = JSON.parse(localStorage.getItem(`sikram_photos_${album.id}`)) || [];
+                const coverPhoto = albumPhotos.length > 0 ? albumPhotos[0].url : 'https://placehold.co/400x300/133050/ffffff?text=Studio+Album';
+
+                let info = getCountdownInfo(album);
+
+                const card = document.createElement('div');
+                card.className = "bg-navy-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl hover:border-sky-500/50 transition cursor-pointer group flex flex-col justify-between";
+                card.innerHTML = `
+                    <div onclick="openSingleAlbumAdmin('${album.id}')">
+                        <div class="relative h-40 overflow-hidden bg-navy-950">
+                            <img id="cover_img_${album.id}" src="${coverPhoto}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                            <div class="absolute inset-0 bg-gradient-to-t from-navy-950 via-transparent to-transparent"></div>
+                            
+                            <div id="expire_badge_${album.id}" class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] text-amber-400 border border-slate-700 flex items-center gap-1 font-semibold font-mono">
+                                <i class="fa-regular fa-clock"></i> ${info.text}
+                            </div>
+
+                            <div id="count_badge_${album.id}" class="absolute bottom-3 right-3 bg-sky-600 text-white px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow">
+                                ${albumPhotos.length} รูป
+                            </div>
+                        </div>
+
+                        <div class="p-4 space-y-1">
+                            <h4 class="text-sm font-bold text-white uppercase font-mono truncate">${album.title}</h4>
+                            <p class="text-xs text-slate-400 truncate">${album.sub || 'ไม่มีคำอธิบาย'}</p>
+                        </div>
+                    </div>
+
+                    <div class="px-3 pb-3 pt-2 flex items-center justify-between border-t border-slate-800/80 mt-1 gap-1">
+                        <button onclick="openSingleAlbumAdmin('${album.id}')" class="text-xs text-sky-400 hover:text-sky-300 font-medium flex items-center gap-1 shrink-0">
+                            <i class="fa-solid fa-folder-open"></i> เปิดอัลบั้ม
+                        </button>
+                        
+                        <!-- เพิ่มปุ่มเปิดดูหน้าแกลเลอรีลูกค้าโดยตรง (จุดที่วงสีแดง) -->
+                        <button onclick="openCustomerViewDirect('${album.id}', event)" title="ดูหน้าแกลเลอรี่ลูกค้า" class="p-1.5 px-2 bg-navy-800 hover:bg-navy-700 text-sky-400 rounded-lg text-xs flex items-center gap-1 border border-slate-700/80 transition">
+                            <i class="fa-solid fa-eye text-xs"></i>
+                            <span class="text-[11px] font-semibold hidden sm:inline">ดูหน้าลูกค้า</span>
+                        </button>
+
+                        <button onclick="openShareModalForId('${album.id}', event)" class="px-2.5 py-1.5 bg-emerald-600/90 hover:bg-emerald-600 text-white rounded-lg text-xs flex items-center gap-1 shadow shrink-0">
+                            <i class="fa-solid fa-share-nodes text-[11px]"></i> แชร์ลูกค้า
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function openSingleAlbumAdmin(albumId) {
+            currentAlbumId = albumId;
+            const album = albums.find(a => a.id === albumId) || { title: albumId, sub: '' };
+            if (album && album.folderId) currentFolderIdParam = album.folderId;
+            
+            document.getElementById('adminActiveTitle').innerText = album.title;
+            document.getElementById('adminActiveSub').innerText = album.sub || 'รายละเอียดอัลบั้ม';
+            
+            let info = getCountdownInfo(album);
+            document.getElementById('adminActiveExpire').innerText = info.text;
+
+            showToast('กำลังโหลดรูปภาพจาก Google Drive...');
+            await fetchPhotosFromDrive(album.title || albumId);
+
+            document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
+            document.getElementById('adminAlbumGridSection').classList.add('hidden');
+            document.getElementById('adminSingleAlbumSection').classList.remove('hidden');
+
+            renderAdminPhotoList();
+        }
+
+        function closeSingleAlbumAdmin() {
+            document.getElementById('adminAlbumGridSection').classList.remove('hidden');
+            document.getElementById('adminSingleAlbumSection').classList.add('hidden');
+            renderAdminDashboard();
+        }
+
+        // ================= CUSTOMER GALLERY RENDER =================
+        async function renderCustomerGallery() {
+            const grid = document.getElementById('photosGrid');
+            const emptyState = document.getElementById('emptyCustomerState');
+            const loadingBanner = document.getElementById('customerLoadingBanner');
+            
+            if (albums.length === 0) {
+                await fetchAlbumsFromDrive();
+            }
+
+            let currentAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
+            if (!currentAlbum) {
+                currentAlbum = { id: currentAlbumId, title: currentAlbumId, expireDays: 7, folderId: currentFolderIdParam };
+                albums.unshift(currentAlbum);
+            } else if (currentFolderIdParam) {
+                currentAlbum.folderId = currentFolderIdParam;
+            }
+            
+            const albumTitle = currentAlbum.title;
+
+            document.getElementById('customerAlbumTitle').innerText = albumTitle;
+            document.getElementById('customerAlbumSub').innerText = currentAlbum.sub ? currentAlbum.sub : 'รูปภาพคุณภาพสูง พร้อมให้ดาวน์โหลดแล้ว';
+
+            let info = getCountdownInfo(currentAlbum);
+            document.getElementById('customerExpireText').innerText = info.text;
+
+            loadingBanner.classList.remove('hidden');
+            grid.innerHTML = `
+                <div class="col-span-full py-12 text-center text-slate-400 text-xs space-y-2">
+                    <i class="fa-solid fa-spinner fa-spin text-2xl text-sky-400"></i>
+                    <p>กำลังดึงข้อมูลรูปภาพจาก Google Drive กรุณารอสักครู่...</p>
+                </div>
+            `;
+
+            await fetchPhotosFromDrive(albumTitle);
+            loadingBanner.classList.add('hidden');
+
+            document.getElementById('totalPhotosCount').innerText = photos.length;
+            document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
+
+            renderPhotoGridItems();
+        }
+
+        function renderPhotoGridItems() {
+            const grid = document.getElementById('photosGrid');
+            const emptyState = document.getElementById('emptyCustomerState');
+            grid.innerHTML = '';
+
+            if (photos.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            photos.forEach((photo) => {
+                const card = document.createElement('div');
+                card.id = `card_${photo.id}`;
+                card.className = "relative group bg-navy-900 rounded-2xl overflow-hidden border border-slate-800 shadow-lg aspect-[3/4] cursor-pointer transition transform active:scale-95";
+                const isSelected = selectedPhotoIds.has(photo.id);
+
+                card.innerHTML = `
+                    <img src="${photo.url}" alt="${photo.name}" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" onclick="handlePhotoClick('${photo.id}')" onerror="this.src='https://placehold.co/400x600/133050/ffffff?text=Studio+Image'">
+                    
+                    <div id="check_${photo.id}" onclick="toggleSelectPhoto('${photo.id}', event)" class="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-sky-500 border-white text-white' : 'border-white/70 bg-black/20 text-transparent'}">
+                        <i class="fa-solid fa-check text-xs"></i>
+                    </div>
+
+                    <div id="downloaded_overlay_${photo.id}" class="${photo.downloaded ? 'flex' : 'hidden'} absolute inset-0 bg-black/30 backdrop-blur-[1px] items-center justify-center pointer-events-none">
+                        <div class="w-12 h-12 rounded-full bg-emerald-500/90 text-white flex items-center justify-center text-xl shadow-2xl">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                    </div>
+
+                    <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2.5 flex items-center justify-between opacity-90 sm:opacity-0 group-hover:opacity-100 transition-all">
+                        <span class="text-[10px] text-slate-300 truncate max-w-[65%]">${photo.name}</span>
+                        <button onclick="downloadSinglePhoto('${photo.id}', event)" class="w-7 h-7 rounded-full bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center text-xs shadow-md">
+                            <i class="fa-solid fa-arrow-down"></i>
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function setGridCols(cols) {
+            const grid = document.getElementById('photosGrid');
+            grid.className = cols === 2 ? "grid grid-cols-2 gap-3 sm:gap-4" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4";
+        }
+
+        // ================= SAVE / DOWNLOAD PROCESS =================
+        function downloadSinglePhoto(photoId, event) {
+            if (event) event.stopPropagation();
+            if (isSavingProcessActive) return;
+
+            const photo = photos.find(p => p.id === photoId);
+            if (!photo) return;
+
+            photosToSaveToGallery = [photo];
+            openSaveGalleryModal();
+        }
+
+        function downloadSelectedPhotos() {
+            if (isSavingProcessActive || selectedPhotoIds.size === 0) return;
+            photosToSaveToGallery = photos.filter(p => selectedPhotoIds.has(p.id));
+            openSaveGalleryModal();
+        }
+
+        function downloadAllPhotos() {
+            if (isSavingProcessActive || photos.length === 0) return;
+            photosToSaveToGallery = [...photos];
+            openSaveGalleryModal();
+        }
+
+        function openSaveGalleryModal() {
+            const count = photosToSaveToGallery.length;
+            document.getElementById('saveModalPhotoCount').innerText = `${count} รูป`;
+            
+            const statusText = document.getElementById('saveModalStatusText');
+            const spinner = document.getElementById('saveModalSpinner');
+            const progressBar = document.getElementById('saveModalProgressBar');
+            const btn = document.getElementById('btnTriggerSaveGallery');
+            const btnText = document.getElementById('btnSaveText');
+
+            statusText.innerText = `กำลังดาวน์โหลดรูป 0/${count}`;
+            spinner.className = "fa-solid fa-spinner fa-spin text-sky-600 text-base";
+            progressBar.style.width = "0%";
+            
+            btn.className = "w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer opacity-50 pointer-events-none";
+            btnText.innerText = "กำลังเตรียมรูปภาพ...";
+
+            openModal('modalSaveToGallery');
+
+            setTimeout(executeGallerySave, 50);
+        }
+
+        function closeSaveGalleryModal() {
+            if (isSavingProcessActive) return;
+            photosToSaveToGallery = [];
+            closeModal('modalSaveToGallery');
+        }
+
+        async function fetchImageBlob(imgUrl) {
+            if (!imgUrl) return null;
+            
+            let fetchUrl = imgUrl;
+            if (imgUrl.includes('drive.google.com') || imgUrl.includes('googleusercontent.com')) {
+                const idMatch = imgUrl.match(/id=([a-zA-Z0-9_-]+)/) || imgUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                if (idMatch && idMatch[1]) {
+                    fetchUrl = `https://lh3.googleusercontent.com/d/${idMatch[1]}=s0`;
+                }
+            }
+
+            try {
+                const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                return await response.blob();
+            } catch (e) {
+                try {
+                    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(fetchUrl);
+                    const proxyResponse = await fetch(proxyUrl);
+                    if (!proxyResponse.ok) throw new Error('Proxy Fetch Failed');
+                    return await proxyResponse.blob();
+                } catch (proxyErr) {
+                    console.error('Failed to fetch image blob via proxy:', proxyErr);
+                    return null;
+                }
+            }
+        }
+
+        function triggerBlobDownload(blob, filename) {
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename || 'Studio_Photo.jpg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        }
+
+        async function executeGallerySave() {
+            if (photosToSaveToGallery.length === 0 || isSavingProcessActive) return;
+
+            isSavingProcessActive = true;
+            const count = photosToSaveToGallery.length;
+            const statusText = document.getElementById('saveModalStatusText');
+            const spinner = document.getElementById('saveModalSpinner');
+            const progressBar = document.getElementById('saveModalProgressBar');
+            const btn = document.getElementById('btnTriggerSaveGallery');
+            const btnText = document.getElementById('btnSaveText');
+
+            const isMobileShareSupported = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                                           && navigator.canShare;
+
+            let completedCount = 0;
+
+            const fetchPromises = photosToSaveToGallery.map(async (p, idx) => {
+                const targetUrl = p.downloadUrl || p.driveDownloadUrl || p.url;
+                const blob = await fetchImageBlob(targetUrl);
+                completedCount++;
+                statusText.innerText = `กำลังดาวน์โหลดรูป ${completedCount}/${count}`;
+                progressBar.style.width = `${Math.round((completedCount / count) * 100)}%`;
+
+                if (blob) {
+                    const fileName = p.name || `Studio_Photo_${idx + 1}.jpg`;
+                    return {
+                        file: new File([blob], fileName, { type: blob.type || 'image/jpeg' }),
+                        blob: blob,
+                        name: fileName
+                    };
+                }
+                return null;
+            });
+
+            const results = await Promise.all(fetchPromises);
+            const fileList = results.filter(item => item !== null);
+
+            if (fileList.length > 0) {
+                if (isMobileShareSupported) {
+                    const rawFiles = fileList.map(item => item.file);
+                    if (navigator.canShare({ files: rawFiles })) {
+                        try {
+                            await navigator.share({
+                                files: rawFiles,
+                                title: 'บันทึกรูปภาพ 037Studio'
+                            });
+                        } catch (e) {
+                            console.log('Share canceled or not supported directly, falling back to direct downloads:', e);
+                        }
+                    } else {
+                        for (const item of fileList) {
+                            triggerBlobDownload(item.blob, item.name);
+                            await new Promise(r => setTimeout(r, 300));
+                        }
+                    }
+                } else {
+                    for (const item of fileList) {
+                        triggerBlobDownload(item.blob, item.name);
+                        await new Promise(r => setTimeout(r, 300));
+                    }
+                }
+
+                photosToSaveToGallery.forEach(p => p.downloaded = true);
+                saveCurrentPhotos();
+
+                statusText.innerText = `ดาวน์โหลดเสร็จสิ้น ${count} รูป`;
+                spinner.className = "fa-solid fa-circle-check text-emerald-500 text-lg";
+                progressBar.style.width = "100%";
+
+                isSavingProcessActive = false;
+                btn.className = "w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer opacity-100 pointer-events-auto";
+                btnText.innerText = "ปิด";
+                btn.onclick = () => {
+                    isSavingProcessActive = false;
+                    closeSaveGalleryModal();
+                };
+
+                document.getElementById('downloadedPhotosCount').innerText = photos.filter(p => p.downloaded).length;
+                renderPhotoGridItems();
+            } else {
+                statusText.innerText = "เกิดข้อผิดพลาดในการโหลดรูปภาพ";
+                spinner.className = "fa-solid fa-triangle-exclamation text-rose-500 text-lg";
+                isSavingProcessActive = false;
+                btn.className = "w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer opacity-100 pointer-events-auto";
+                btnText.innerText = "ปิด";
+                btn.onclick = () => {
+                    isSavingProcessActive = false;
+                    closeSaveGalleryModal();
+                };
+            }
+        }
+
+        // ================= SELECTION MODE & LIGHTBOX =================
+        function toggleSelectMode() {
+            isSelectMode = !isSelectMode;
+            const btn = document.getElementById('btnSelectToggle');
+            const icon = document.getElementById('iconSelectToggle');
+            const text = document.getElementById('textSelectToggle');
+            const floatingBar = document.getElementById('floatingDownloadBar');
+
+            if (isSelectMode) {
+                btn.className = "px-3.5 py-1.5 rounded-full bg-sky-600 text-white border border-sky-400 text-xs font-medium flex items-center gap-2 transition";
+                icon.className = "fa-solid fa-check-circle";
+                text.innerText = "กำลังเลือกรูปภาพ";
+                if (selectedPhotoIds.size > 0 && floatingBar) {
+                    floatingBar.classList.remove('hidden');
+                }
+            } else {
+                btn.className = "px-3.5 py-1.5 rounded-full bg-navy-800 hover:bg-navy-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-2 transition";
+                icon.className = "fa-regular fa-circle";
+                text.innerText = "เลือกรูปภาพ";
+                if (floatingBar) floatingBar.classList.add('hidden');
+                
+                selectedPhotoIds.forEach(id => {
+                    const checkBtn = document.getElementById(`check_${id}`);
+                    if (checkBtn) {
+                        checkBtn.className = "absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all border-white/70 bg-black/20 text-transparent";
+                    }
+                });
+                selectedPhotoIds.clear();
+                updateSelectedCount();
+            }
+        }
+
+        function handlePhotoClick(photoId) {
+            if (isSelectMode) toggleSelectPhoto(photoId);
+            else openLightbox(photoId);
+        }
+
+        function toggleSelectPhoto(photoId, event) {
+            if (event) event.stopPropagation();
+
+            const checkBtn = document.getElementById(`check_${photoId}`);
+
+            if (selectedPhotoIds.has(photoId)) {
+                selectedPhotoIds.delete(photoId);
+                if (checkBtn) {
+                    checkBtn.className = "absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all border-white/70 bg-black/20 text-transparent";
+                }
+            } else {
+                selectedPhotoIds.add(photoId);
+                if (checkBtn) {
+                    checkBtn.className = "absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all bg-sky-500 border-white text-white";
+                }
+            }
+
+            if (!isSelectMode && selectedPhotoIds.size > 0) toggleSelectMode();
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            const count = selectedPhotoIds.size;
+            document.getElementById('selectedCount').innerText = count;
+            const floatingBar = document.getElementById('floatingDownloadBar');
+            
+            if (floatingBar) {
+                if (count > 0 && isSelectMode) {
+                    floatingBar.classList.remove('hidden');
+                } else {
+                    floatingBar.classList.add('hidden');
+                }
+            }
+        }
+
+        function openLightbox(photoId) {
+            currentLightboxPhotoId = photoId;
+            updateLightboxContent();
+            openModal('modalLightbox');
+        }
+
+        function updateLightboxContent() {
+            const photo = photos.find(p => p.id === currentLightboxPhotoId);
+            if (!photo) return;
+
+            const idx = photos.findIndex(p => p.id === currentLightboxPhotoId);
+            document.getElementById('lightboxIndex').innerText = `${idx + 1} / ${photos.length}`;
+            document.getElementById('lightboxImg').src = photo.url;
+        }
+
+        function nextLightboxPhoto() {
+            if (!photos || photos.length === 0) return;
+            let currentIdx = photos.findIndex(p => p.id === currentLightboxPhotoId);
+            if (currentIdx === -1) return;
+
+            let nextIdx = (currentIdx + 1) % photos.length;
+            currentLightboxPhotoId = photos[nextIdx].id;
+            updateLightboxContent();
+        }
+
+        function prevLightboxPhoto() {
+            if (!photos || photos.length === 0) return;
+            let currentIdx = photos.findIndex(p => p.id === currentLightboxPhotoId);
+            if (currentIdx === -1) return;
+
+            let prevIdx = (currentIdx - 1 + photos.length) % photos.length;
+            currentLightboxPhotoId = photos[prevIdx].id;
+            updateLightboxContent();
+        }
+
+        function setupLightboxSwipe() {
+            const container = document.getElementById('lightboxContainer');
+            if (!container) return;
+
+            let touchStartX = 0;
+            let touchEndX = 0;
+
+            container.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+
+            container.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                const swipeDistance = touchEndX - touchStartX;
+                if (Math.abs(swipeDistance) > 40) {
+                    if (swipeDistance < 0) nextLightboxPhoto();
+                    else prevLightboxPhoto();
+                }
+            }, { passive: true });
+        }
+
+        function downloadSingleCurrentPhoto() {
+            if (currentLightboxPhotoId) downloadSinglePhoto(currentLightboxPhotoId);
+        }
+
+        function renderAdminPhotoList() {
+            const grid = document.getElementById('adminPhotoGrid');
+            grid.innerHTML = '';
+
+            photos.forEach(photo => {
+                const card = document.createElement('div');
+                card.className = "relative bg-navy-950 rounded-xl overflow-hidden border border-slate-800 aspect-square group";
+                card.innerHTML = `
+                    <img src="${photo.url}" class="w-full h-full object-cover">
+                    <button onclick="deletePhoto('${photo.id}')" class="absolute top-2 right-2 w-7 h-7 bg-rose-600/90 hover:bg-rose-500 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    <div class="absolute bottom-0 inset-x-0 bg-black/70 p-1 text-[10px] text-slate-300 truncate text-center">
+                        ${photo.name}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                uploadFilesProcess(files);
+            }
+            e.target.value = '';
+        }
+
+        // ================= CONCURRENT UPLOAD WITH FLOATING POPUP WIDGET =================
+        async function uploadFilesProcess(files) {
+            const grid = document.getElementById('adminPhotoGrid');
+            const currentAlbum = albums.find(a => a.id === currentAlbumId);
+            const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
+
+            totalUploadCount = files.length;
+            completedUploadCount = 0;
+
+            const widget = document.getElementById('uploadProgressWidget');
+            const widgetList = document.getElementById('uploadWidgetList');
+            const widgetTitle = document.getElementById('widgetTitle');
+            const widgetIcon = document.getElementById('widgetHeaderIcon');
+
+            widget.classList.remove('hidden');
+            widgetList.classList.remove('hidden');
+            isWidgetCollapsed = false;
+            document.getElementById('btnWidgetCollapseIcon').className = "fa-solid fa-chevron-down text-xs";
+            
+            widgetIcon.className = "fa-solid fa-spinner fa-spin text-emerald-600";
+            widgetTitle.innerText = `ส่งเรียบร้อยแล้ว 0/${totalUploadCount} รูป`;
+            widgetList.innerHTML = '';
+
+            const uploadQueue = [];
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const base64 = await readFileAsDataURL(file);
+                const itemKey = 'item_' + Date.now() + '_' + i;
+
+                const widgetRow = document.createElement('div');
+                widgetRow.id = `widget_row_${itemKey}`;
+                widgetRow.className = "flex items-center justify-between pt-1.5 first:pt-0";
+                widgetRow.innerHTML = `
+                    <div class="flex items-center gap-2 truncate max-w-[80%]">
+                        <img src="${base64}" class="w-7 h-7 rounded object-cover border border-slate-200 shrink-0">
+                        <span class="text-slate-700 font-medium truncate">${file.name}</span>
+                    </div>
+                    <div id="status_icon_${itemKey}" class="shrink-0 text-slate-400">
+                        <i class="fa-solid fa-spinner fa-spin text-sky-500"></i>
+                    </div>
+                `;
+                widgetList.appendChild(widgetRow);
+
+                const card = document.createElement('div');
+                card.id = `card_${itemKey}`;
+                card.className = "relative bg-navy-950 rounded-xl overflow-hidden border border-slate-800 aspect-square";
+                card.innerHTML = `
+                    <img src="${base64}" class="w-full h-full object-cover opacity-50">
+                    <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white font-bold text-xs">
+                        <i class="fa-solid fa-spinner fa-spin text-sky-400 text-lg mb-1"></i>
+                        <span class="text-[10px] text-sky-200">กำลังอัปโหลด...</span>
+                    </div>
+                `;
+                grid.prepend(card);
+
+                uploadQueue.push({ file, base64, itemKey, card });
+            }
+
+            const uploadSingleFile = async (task) => {
+                try {
+                    const response = await fetch(googleScriptUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({
+                            albumTitle: albumTitle,
+                            parentFolderId: parentDriveFolderId,
+                            file: { name: task.file.name, type: task.file.type, base64: task.base64 }
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.status === 'success' && result.file) {
+                        photos.push(result.file);
+                        saveCurrentPhotos();
+
+                        task.card.innerHTML = `
+                            <img src="${result.file.url}" class="w-full h-full object-cover">
+                            <button onclick="deletePhoto('${result.file.id}')" class="absolute top-2 right-2 w-7 h-7 bg-rose-600/90 hover:bg-rose-500 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                            <div class="absolute bottom-0 inset-x-0 bg-black/70 p-1 text-[10px] text-slate-300 truncate text-center">
+                                ${result.file.name}
+                            </div>
+                        `;
+
+                        const statusIcon = document.getElementById(`status_icon_${task.itemKey}`);
+                        if (statusIcon) {
+                            statusIcon.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>`;
+                        }
+                    } else {
+                        throw new Error("Upload Failed");
+                    }
+                } catch (err) {
+                    const fallbackObj = {
+                        id: 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                        albumId: currentAlbumId,
+                        url: task.base64,
+                        name: task.file.name,
+                        downloaded: false
+                    };
+                    photos.push(fallbackObj);
+                    saveCurrentPhotos();
+
+                    task.card.innerHTML = `
+                        <img src="${task.base64}" class="w-full h-full object-cover">
+                        <button onclick="deletePhoto('${fallbackObj.id}')" class="absolute top-2 right-2 w-7 h-7 bg-rose-600/90 hover:bg-rose-500 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    `;
+
+                    const statusIcon = document.getElementById(`status_icon_${task.itemKey}`);
+                    if (statusIcon) {
+                        statusIcon.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>`;
+                    }
+                } finally {
+                    completedUploadCount++;
+                    widgetTitle.innerText = `ส่งเรียบร้อยแล้ว ${completedUploadCount}/${totalUploadCount} รูป`;
+                    document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
+                }
+            };
+
+            const CONCURRENCY_LIMIT = 5;
+            const pool = [];
+
+            for (const task of uploadQueue) {
+                const p = uploadSingleFile(task);
+                pool.push(p);
+
+                if (pool.length >= CONCURRENCY_LIMIT) {
+                    await Promise.race(pool);
+                    for (let i = pool.length - 1; i >= 0; i--) {
+                        pool.splice(i, 1);
+                    }
+                }
+            }
+
+            await Promise.all(pool);
+
+            widgetIcon.className = "fa-solid fa-circle-check text-emerald-500";
+            widgetTitle.innerText = `ส่งไฟล์เรียบร้อยแล้ว - ${totalUploadCount} รูป`;
+            showToast('อัปโหลดรูปภาพทั้งหมดเรียบร้อยแล้ว');
+        }
+
+        function toggleUploadWidgetCollapse() {
+            const list = document.getElementById('uploadWidgetList');
+            const icon = document.getElementById('btnWidgetCollapseIcon');
+            isWidgetCollapsed = !isWidgetCollapsed;
+
+            if (isWidgetCollapsed) {
+                list.classList.add('hidden');
+                icon.className = "fa-solid fa-chevron-up text-xs";
+            } else {
+                list.classList.remove('hidden');
+                icon.className = "fa-solid fa-chevron-down text-xs";
+            }
+        }
+
+        function closeUploadWidget() {
+            document.getElementById('uploadProgressWidget').classList.add('hidden');
+        }
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function deletePhoto(photoId) {
+            if (confirm('ต้องการลบรูปภาพนี้ออกจาก Google Drive หรือไม่?')) {
+                showToast('กำลังลบรูปภาพใน Google Drive...');
+                
+                try {
+                    await fetch(googleScriptUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({
+                            action: 'deletePhoto',
+                            fileId: photoId
+                        })
+                    });
+                } catch (err) {
+                    console.log('Delete photo error', err);
+                }
+
+                photos = photos.filter(p => p.id !== photoId);
+                saveCurrentPhotos();
+                renderAdminPhotoList();
+                document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
+                showToast('ลบรูปภาพออกจาก Google Drive เรียบร้อย');
+            }
+        }
+
+        function openCreateAlbumModal() {
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = String(now.getFullYear() + 543).slice(-2);
+            
+            let hours = now.getHours();
+            const minutes = now.getMinutes();
+            let formattedTime = minutes < 30 ? `${String(hours).padStart(2, '0')}:00` : `${String(hours).padStart(2, '0')}:30`;
+            
+            document.getElementById('inputAlbumTitle').value = `037Studio_${day}.${month}.${year}_${formattedTime}`;
+            document.getElementById('inputAlbumSub').value = '';
+            openModal('modalCreateAlbum');
+        }
+
+        async function saveNewAlbum() {
+            const title = document.getElementById('inputAlbumTitle').value.trim();
+            const sub = document.getElementById('inputAlbumSub').value.trim();
+            const expireDays = parseFloat(document.getElementById('inputAlbumExpireDays').value);
+
+            if (!title) {
+                alert('กรุณากรอกชื่ออัลบั้ม');
+                return;
+            }
+
+            closeModal('modalCreateAlbum');
+            showToast(`กำลังสร้างโฟลเดอร์ & บันทึกลิงก์ลง Google Sheet...`);
+
+            let folderId = null;
+            let folderUrl = null;
+            let createdAt = new Date().toISOString();
+
+            try {
+                const res = await fetch(googleScriptUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'createFolder',
+                        albumTitle: title,
+                        sub: sub,
+                        expireDays: expireDays,
+                        parentFolderId: parentDriveFolderId,
+                        customerUrl: `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(title)}`
+                    })
+                });
+
+                const data = await res.json();
+                if (data.status === 'success') {
+                    if (data.folderId) folderId = data.folderId;
+                    if (data.folderUrl) folderUrl = data.folderUrl;
+                    if (data.createdAt) createdAt = data.createdAt;
+                    showToast(`สร้างอัลบั้มเรียบร้อยแล้ว!`);
+                }
+            } catch (err) {
+                console.log('Google Drive folder creation error', err);
+            }
+
+            const newAlbumObj = {
+                id: 'album_' + Date.now(),
+                title: title,
+                sub: sub,
+                expireDays: expireDays,
+                folderId: folderId,
+                folderUrl: folderUrl,
+                createdAt: createdAt
+            };
+
+            albums.unshift(newAlbumObj);
+            saveAlbums();
+            renderAdminDashboard();
+        }
+
+        async function deleteCurrentAlbum() {
+            if (confirm(`คุณแน่ใจหรือไม่ที่จะลบอัลบั้มนี้ออกจาก Google Drive?`)) {
+                showToast('กำลังลบอัลบั้มบน Google Drive...');
+
+                const currentAlbum = albums.find(a => a.id === currentAlbumId);
+                const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
+
+                try {
+                    await fetch(googleScriptUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({
+                            action: 'deleteAlbum',
+                            albumTitle: albumTitle,
+                            parentFolderId: parentDriveFolderId
+                        })
+                    });
+                } catch (err) {
+                    console.log('Delete album error', err);
+                }
+
+                albums = albums.filter(a => a.id !== currentAlbumId);
+                localStorage.removeItem(`sikram_photos_${currentAlbumId}`);
+                saveAlbums();
+
+                closeSingleAlbumAdmin();
+                showToast('ลบอัลบั้มออกจาก Google Drive เรียบร้อย');
+            }
+        }
+
+        // ================= SHARE MODALS =================
+        function openShareModalForId(albumId, event) {
+            if (event) event.stopPropagation();
+            currentAlbumId = albumId;
+            openShareModalCurrent();
+        }
+
+        function openShareModalCurrent() {
+            const album = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
+            const albumTitle = album ? album.title : currentAlbumId;
+            
+            let shareUrl = `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(albumTitle)}`;
+            if (album && album.folderId) {
+                shareUrl += `&folderId=${encodeURIComponent(album.folderId)}`;
+            }
+
+            document.getElementById('shareOnlyUrlInput').value = shareUrl;
+
+            let info = getCountdownInfo(album);
+            let expireInfo = `อัลบั้มนี้จะถูกลบอัตโนมัติภายใน ${info.text}`;
+            if (!album || album.expireDays === 0) {
+                expireInfo = "อัลบั้มนี้ไม่มีกำหนดลบอัตโนมัติ";
+            }
+
+            let customTemplate = localStorage.getItem('sikram_share_template');
+            let finalMsg = "";
+
+            if (customTemplate) {
+                let updatedText = customTemplate.replace(/(https?:\/\/[^\s]+)/g, shareUrl);
+                finalMsg = updatedText.replace('{LINK}', shareUrl).replace('{EXPIRE_INFO}', expireInfo);
+            } else {
+                finalMsg = DEFAULT_SHARE_TEMPLATE.replace('{LINK}', shareUrl).replace('{EXPIRE_INFO}', expireInfo);
+            }
+
+            const textarea = document.getElementById('shareFullMessageTextarea');
+            textarea.value = finalMsg;
+
+            const qrContainer = document.getElementById('qrcodeCanvas');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: shareUrl,
+                width: 130,
+                height: 130,
+                colorDark: "#0e2238",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            openModal('modalShare');
+        }
+
+        function copyOnlyAlbumUrl() {
+            const urlInput = document.getElementById('shareOnlyUrlInput');
+            navigator.clipboard.writeText(urlInput.value).then(() => {
+                showToast('คัดลอกลิงก์เรียบร้อยแล้ว!');
+            }).catch(err => {
+                urlInput.select();
+                document.execCommand('copy');
+                showToast('คัดลอกลิงก์เรียบร้อย!');
+            });
+        }
+
+        function toggleEditShareMessage() {
+            const textarea = document.getElementById('shareFullMessageTextarea');
+            const btnEdit = document.getElementById('btnEditShareMsg');
+            const btnReset = document.getElementById('btnResetShareMsg');
+
+            if (!isEditingShareMsg) {
+                isEditingShareMsg = true;
+                textarea.readOnly = false;
+                textarea.className = "w-full h-32 bg-amber-50/50 border-2 border-amber-400 rounded-xl p-3 text-xs text-slate-800 font-sans leading-relaxed focus:outline-none resize-none shadow-md";
+                textarea.focus();
+                btnEdit.innerHTML = `<i class="fa-solid fa-floppy-disk text-emerald-600"></i> บันทึกแม่แบบ`;
+                btnReset.classList.remove('hidden');
+                showToast('สามารถแก้ไขข้อความได้แล้ว', 'warning');
+            } else {
+                isEditingShareMsg = false;
+                textarea.readOnly = true;
+                textarea.className = "w-full h-32 bg-white border border-slate-300 rounded-xl p-3 text-xs text-slate-800 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none shadow-inner";
+                btnEdit.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> แก้ไขข้อความ`;
+                btnReset.classList.add('hidden');
+
+                let currentVal = textarea.value;
+                localStorage.setItem('sikram_share_template', currentVal);
+                showToast('บันทึกแม่แบบข้อความเรียบร้อยแล้ว');
+            }
+        }
+
+        function resetDefaultShareMessage() {
+            localStorage.removeItem('sikram_share_template');
+            openShareModalCurrent();
+            showToast('คืนค่าข้อความเริ่มต้นเรียบร้อย');
+        }
+
+        function copyFullShareMessage() {
+            const textarea = document.getElementById('shareFullMessageTextarea');
+            navigator.clipboard.writeText(textarea.value).then(() => {
+                showToast('คัดลอกข้อความพร้อมลิงก์ส่งลูกค้าเรียบร้อย!');
+            }).catch(err => {
+                textarea.select();
+                document.execCommand('copy');
+                showToast('คัดลอกข้อความเรียบร้อย!');
+            });
+        }
+
+        function downloadQRCodeImage() {
+            const img = document.querySelector('#qrcodeCanvas img');
+            if (img) {
+                const a = document.createElement('a');
+                a.href = img.src;
+                a.download = `QRCode-${currentAlbumId}.png`;
+                a.click();
+                showToast('ดาวน์โหลด QR Code เรียบร้อย');
+            }
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = msg;
+            toastIcon.className = type === 'warning' ? "fa-solid fa-triangle-exclamation text-amber-400" : "fa-solid fa-circle-check text-emerald-400";
+
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+    </script>
+</body>
+</html>
