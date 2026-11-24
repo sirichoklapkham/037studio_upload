@@ -270,7 +270,7 @@
                 <button onclick="toggleUploadWidgetCollapse()" class="hover:text-slate-800 p-1">
                     <i id="btnWidgetCollapseIcon" class="fa-solid fa-chevron-down text-xs"></i>
                 </button>
-                <button onclick="closeUploadWidget()" class="hover:text-slate-800 p-1">
+                <button id="btnWidgetClose" onclick="closeUploadWidget()" class="hover:text-slate-800 p-1 transition">
                     <i class="fa-solid fa-xmark text-sm"></i>
                 </button>
             </div>
@@ -910,6 +910,7 @@
 
         function switchMode(mode) {
             if (isCustomerSharedLink && mode === 'admin') return;
+            if (typeof isUploadingNow !== 'undefined' && isUploadingNow) { showToast('กำลังอัปโหลดรูปภาพอยู่ กรุณารอให้เสร็จก่อนสลับโหมดครับ', 'warning'); return; }
 
             currentMode = mode;
             const customerView = document.getElementById('customerView');
@@ -1032,6 +1033,7 @@
         }
 
         function closeSingleAlbumAdmin() {
+            if (typeof isUploadingNow !== 'undefined' && isUploadingNow) { showToast('กำลังอัปโหลดรูปภาพอยู่ กรุณารอให้เสร็จก่อนออกจากอัลบั้มครับ', 'warning'); return; }
             document.getElementById('adminAlbumGridSection').classList.remove('hidden');
             document.getElementById('adminSingleAlbumSection').classList.add('hidden');
             renderAdminDashboard();
@@ -1484,7 +1486,7 @@
 
             isUploadingNow = true;
             failedUploadFiles = [];
-            window.onbeforeunload = () => "กำลังอัปโหลดรูปภาพอยู่ หากปิดหน้านี้การอัปโหลดจะหยุดลง";
+            updateUploadCloseGuard(true);
 
             const grid = document.getElementById('adminPhotoGrid');
             const currentAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
@@ -1538,6 +1540,7 @@
             const updateHeaderStatus = (prefix = 'ส่งสำเร็จ') => {
                 completedUploadCount = tasks.filter(t => t.done).length;
                 widgetTitle.innerText = `${prefix} ${completedUploadCount}/${totalUploadCount} รูป`;
+                document.title = `⏳ (${completedUploadCount}/${totalUploadCount}) กำลังอัปโหลด - 037Studio`;
             };
 
             const setStatusIcon = (itemKey, html) => {
@@ -1804,7 +1807,7 @@
             completedUploadCount = tasks.filter(t => t.done).length;
             saveCurrentPhotos();
             isUploadingNow = false;
-            window.onbeforeunload = null;
+            updateUploadCloseGuard(false);
 
             if (failedUploadFiles.length > 0) {
                 widgetIcon.className = "fa-solid fa-triangle-exclamation text-amber-500";
@@ -1840,7 +1843,47 @@
             }
         }
 
+        function updateUploadCloseGuard(active) {
+            const closeBtn = document.getElementById('btnWidgetClose');
+            if (closeBtn) {
+                if (active) {
+                    closeBtn.classList.add('opacity-30', 'cursor-not-allowed');
+                    closeBtn.title = 'ไม่สามารถปิดได้ขณะกำลังอัปโหลดรูปภาพ';
+                } else {
+                    closeBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+                    closeBtn.title = 'ปิดหน้าต่าง';
+                }
+            }
+            if (!active) {
+                document.title = '037Studio - AI Photo Delivery';
+            }
+        }
+
+        // ดักการกดปิดแท็บ / ปิดเบราว์เซอร์ / กด Back ขณะกำลังอัปโหลด
+        window.addEventListener('beforeunload', function (e) {
+            if (typeof isUploadingNow !== 'undefined' && isUploadingNow) {
+                e.preventDefault();
+                e.returnValue = 'กำลังอัปโหลดรูปภาพอยู่ หากปิดหน้านี้การอัปโหลดจะหยุดลงทันที';
+                return e.returnValue;
+            }
+        });
+
+        // ป้องกันการเผลอกด F5 หรือ Ctrl+R รีเฟรชหน้าขณะกำลังอัปโหลด
+        window.addEventListener('keydown', function (e) {
+            if (typeof isUploadingNow !== 'undefined' && isUploadingNow) {
+                const isRefreshKey = e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r');
+                if (isRefreshKey) {
+                    e.preventDefault();
+                    showToast('กำลังอัปโหลดรูปภาพอยู่ ห้ามรีเฟรชหน้าเว็บครับ!', 'warning');
+                }
+            }
+        });
+
         function closeUploadWidget() {
+            if (typeof isUploadingNow !== 'undefined' && isUploadingNow) {
+                showToast('กำลังอัปโหลดรูปภาพอยู่ ปิดไม่ได้ครับ (กดปุ่มลูกศร ∨ เพื่อพับเก็บแทน)', 'warning');
+                return;
+            }
             document.getElementById('uploadProgressWidget').classList.add('hidden');
         }
 
@@ -1951,6 +1994,7 @@
         }
 
         async function deleteCurrentAlbum() {
+            if (typeof isUploadingNow !== 'undefined' && isUploadingNow) { showToast('กำลังอัปโหลดรูปภาพอยู่ ไม่สามารถลบอัลบั้มได้ในขณะนี้ครับ', 'warning'); return; }
             if (confirm(`คุณแน่ใจหรือไม่ที่จะลบอัลบั้มนี้ออกจาก Google Drive?`)) {
                 showToast('กำลังลบอัลบั้มบน Google Drive...');
 
