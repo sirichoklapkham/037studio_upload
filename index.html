@@ -109,7 +109,7 @@
                 <div id="settingsPanel" class="hidden pt-2 space-y-3 border-t border-slate-800 text-xs">
                     <div>
                         <label class="block text-slate-400 mb-1">Google Apps Script Web App URL:</label>
-                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycby7sEE1dP2ita29ejmYNK-QNgQdctdUcF65NqLlhnYaSij9yPcv7eaCJAqJUn3Am_s5/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px] focus:outline-none">
+                        <input type="text" id="inputScriptUrl" value="https://script.google.com/macros/s/AKfycbwuZUs2fPdI2RbU-2bDzV04JN0HRKLpArqZHPaFopFSmkTgAji9y0kDBu9xZt95l_5v/exec" class="w-full bg-navy-950 border border-slate-700 rounded-lg p-2 text-sky-400 font-mono text-[11px] focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-slate-400 mb-1">Google Drive Folder ID หลักของร้าน:</label>
@@ -876,11 +876,23 @@
 
         function saveCurrentPhotos() {
             if (!currentAlbumId) return;
-            localStorage.setItem(`sikram_photos_${currentAlbumId}`, JSON.stringify(photos));
+            try {
+                const lightPhotos = photos.map(p => ({
+                    id: p.id, name: p.name, folderId: p.folderId,
+                    url: p.url, downloadUrl: p.downloadUrl, downloaded: !!p.downloaded
+                }));
+                localStorage.setItem(`sikram_photos_${currentAlbumId}`, JSON.stringify(lightPhotos));
+            } catch (e) {
+                console.warn('localStorage เต็ม ข้ามการแคชรูปชั่วคราว:', e);
+            }
         }
 
         function saveAlbums() {
-            localStorage.setItem('sikram_albums', JSON.stringify(albums));
+            try {
+                localStorage.setItem('sikram_albums', JSON.stringify(albums));
+            } catch (e) {
+                console.warn('localStorage เต็ม ข้ามการแคชอัลบั้ม:', e);
+            }
         }
 
         function saveDriveSettings() {
@@ -1457,13 +1469,29 @@
             e.target.value = '';
         }
 
-        // ================= CONCURRENT UPLOAD WITH FLOATING POPUP WIDGET =================
-        async function uploadFilesProcess(files) {
-            const grid = document.getElementById('adminPhotoGrid');
-            const currentAlbum = albums.find(a => a.id === currentAlbumId);
-            const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
+        // ================= STABLE WORKER-POOL UPLOAD (DIRECT DRIVE TURBO - 10 PARALLEL) =================
+        let isUploadingNow = false;
+        let failedUploadFiles = [];
 
-            totalUploadCount = files.length;
+        async function uploadFilesProcess(files, isManualRetry = false) {
+            if (isUploadingNow) {
+                showToast('กำลังอัปโหลดชุดก่อนหน้าอยู่ กรุณารอให้เสร็จก่อนครับ', 'warning');
+                return;
+            }
+
+            const fileArray = Array.from(files);
+            if (fileArray.length === 0) return;
+
+            isUploadingNow = true;
+            failedUploadFiles = [];
+            window.onbeforeunload = () => "กำลังอัปโหลดรูปภาพอยู่ หากปิดหน้านี้การอัปโหลดจะหยุดลง";
+
+            const grid = document.getElementById('adminPhotoGrid');
+            const currentAlbum = albums.find(a => a.id === currentAlbumId || a.title === currentAlbumId);
+            const albumTitle = currentAlbum ? currentAlbum.title : currentAlbumId;
+            let targetFolderId = (currentAlbum && currentAlbum.folderId) ? currentAlbum.folderId : (currentFolderIdParam || '');
+
+            totalUploadCount = fileArray.length;
             completedUploadCount = 0;
 
             const widget = document.getElementById('uploadProgressWidget');
@@ -1475,131 +1503,327 @@
             widgetList.classList.remove('hidden');
             isWidgetCollapsed = false;
             document.getElementById('btnWidgetCollapseIcon').className = "fa-solid fa-chevron-down text-xs";
-            
             widgetIcon.className = "fa-solid fa-spinner fa-spin text-emerald-600";
-            widgetTitle.innerText = `ส่งเรียบร้อยแล้ว 0/${totalUploadCount} รูป`;
+            widgetTitle.innerText = `กำลังอัปโหลด 0/${totalUploadCount} รูป`;
             widgetList.innerHTML = '';
 
-            const uploadQueue = [];
-
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                const base64 = await readFileAsDataURL(file);
-                const itemKey = 'item_' + Date.now() + '_' + i;
-
+            const fragment = document.createDocumentFragment();
+            const tasks = fileArray.map((file, i) => {
+                const itemKey = `item_${Date.now()}_${i}`;
                 const widgetRow = document.createElement('div');
                 widgetRow.id = `widget_row_${itemKey}`;
                 widgetRow.className = "flex items-center justify-between pt-1.5 first:pt-0";
                 widgetRow.innerHTML = `
-                    <div class="flex items-center gap-2 truncate max-w-[80%]">
-                        <img src="${base64}" class="w-7 h-7 rounded object-cover border border-slate-200 shrink-0">
+                    <div class="flex items-center gap-2 truncate max-w-[76%]">
+                        <i class="fa-regular fa-image text-slate-400 shrink-0"></i>
                         <span class="text-slate-700 font-medium truncate">${file.name}</span>
                     </div>
-                    <div id="status_icon_${itemKey}" class="shrink-0 text-slate-400">
-                        <i class="fa-solid fa-spinner fa-spin text-sky-500"></i>
+                    <div id="status_icon_${itemKey}" class="shrink-0 text-slate-400 text-[11px]">
+                        <i class="fa-regular fa-clock text-slate-300"></i>
                     </div>
                 `;
-                widgetList.appendChild(widgetRow);
+                fragment.appendChild(widgetRow);
+                return {
+                    file,
+                    itemKey,
+                    mimeType: file.type || 'image/jpeg',
+                    done: false,
+                    lastError: ''
+                };
+            });
+            widgetList.appendChild(fragment);
 
+            const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+            const updateHeaderStatus = (prefix = 'ส่งสำเร็จ') => {
+                completedUploadCount = tasks.filter(t => t.done).length;
+                widgetTitle.innerText = `${prefix} ${completedUploadCount}/${totalUploadCount} รูป`;
+            };
+
+            const setStatusIcon = (itemKey, html) => {
+                const el = document.getElementById(`status_icon_${itemKey}`);
+                if (el) el.innerHTML = html;
+            };
+
+            const addUploadedCard = (f) => {
+                if (!f || photos.some(p => p.id === f.id)) return;
+                photos.push(f);
                 const card = document.createElement('div');
-                card.id = `card_${itemKey}`;
-                card.className = "relative bg-navy-950 rounded-xl overflow-hidden border border-slate-800 aspect-square";
+                card.className = "relative bg-navy-950 rounded-xl overflow-hidden border border-slate-800 aspect-square group";
                 card.innerHTML = `
-                    <img src="${base64}" class="w-full h-full object-cover opacity-50">
-                    <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white font-bold text-xs">
-                        <i class="fa-solid fa-spinner fa-spin text-sky-400 text-lg mb-1"></i>
-                        <span class="text-[10px] text-sky-200">กำลังอัปโหลด...</span>
+                    <img src="${f.url}" loading="lazy" class="w-full h-full object-cover">
+                    <button onclick="deletePhoto('${f.id}')" class="absolute top-2 right-2 w-7 h-7 bg-rose-600/90 hover:bg-rose-500 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    <div class="absolute bottom-0 inset-x-0 bg-black/70 p-1 text-[10px] text-slate-300 truncate text-center">
+                        ${f.name}
                     </div>
                 `;
                 grid.prepend(card);
+                document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
+            };
 
-                uploadQueue.push({ file, base64, itemKey, card });
-            }
+            // 1. ยิงไฟล์เดี่ยวตรงเข้า Google Drive ผ่าน Resumable Upload URL (ไม่ใช้ Base64)
+            const putFileDirectToDrive = async (task, uploadUrl) => {
+                for (let attempt = 1; attempt <= 2; attempt++) {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 60000);
+                    try {
+                        const res = await fetch(uploadUrl, {
+                            method: 'PUT',
+                            signal: controller.signal,
+                            headers: { 'Content-Type': task.mimeType },
+                            body: task.file
+                        });
+                        clearTimeout(timeoutId);
 
-            const uploadSingleFile = async (task) => {
+                        if (res.ok) {
+                            const driveData = await res.json();
+                            if (driveData && driveData.id) {
+                                const fileObj = {
+                                    id: driveData.id,
+                                    name: driveData.name || task.file.name,
+                                    folderId: targetFolderId,
+                                    url: `https://lh3.googleusercontent.com/d/${driveData.id}=s1600`,
+                                    downloadUrl: `https://drive.google.com/uc?export=download&id=${driveData.id}`
+                                };
+                                task.done = true;
+                                task.lastError = '';
+                                addUploadedCard(fileObj);
+                                setStatusIcon(task.itemKey, `<i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>`);
+                                updateHeaderStatus();
+                                return true;
+                            }
+                        }
+                        throw new Error(`Drive HTTP ${res.status}`);
+                    } catch (err) {
+                        clearTimeout(timeoutId);
+                        task.lastError = (err.name === 'AbortError') ? 'หมดเวลาส่งไฟล์' : (err.message || 'ส่งเข้า Drive สะดุด');
+                        if (attempt < 2) {
+                            await sleep(1000);
+                        }
+                    }
+                }
+                setStatusIcon(task.itemKey, `<span class="text-[10px] text-amber-500">รอเก็บตก</span>`);
+                return false;
+            };
+
+            // 2. โหมด Direct Drive Turbo: ขอ URL ทีละ 10 รูป แล้วส่งพร้อมกันทั้ง 10 รูปตรงเข้า Drive
+            let useDirectTurbo = !!(window.location.origin && window.location.origin.startsWith('http'));
+
+            const runDirectTurboGroup = async (groupTasks, isRetryFlag) => {
+                groupTasks.forEach(t => setStatusIcon(t.itemKey, `<i class="fa-solid fa-spinner fa-spin text-sky-500"></i>`));
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 45000);
+                let initData = null;
+
                 try {
-                    const response = await fetch(googleScriptUrl, {
+                    const res = await fetch(googleScriptUrl, {
                         method: 'POST',
+                        signal: controller.signal,
                         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                         body: JSON.stringify({
+                            action: 'initDirectUpload',
                             albumTitle: albumTitle,
+                            folderId: targetFolderId,
                             parentFolderId: parentDriveFolderId,
-                            file: { name: task.file.name, type: task.file.type, base64: task.base64 }
+                            origin: window.location.origin,
+                            isRetry: isRetryFlag,
+                            files: groupTasks.map(t => ({ name: t.file.name, type: t.mimeType }))
                         })
                     });
-
-                    const result = await response.json();
-
-                    if (result.status === 'success' && result.file) {
-                        photos.push(result.file);
-                        saveCurrentPhotos();
-
-                        task.card.innerHTML = `
-                            <img src="${result.file.url}" class="w-full h-full object-cover">
-                            <button onclick="deletePhoto('${result.file.id}')" class="absolute top-2 right-2 w-7 h-7 bg-rose-600/90 hover:bg-rose-500 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                            <div class="absolute bottom-0 inset-x-0 bg-black/70 p-1 text-[10px] text-slate-300 truncate text-center">
-                                ${result.file.name}
-                            </div>
-                        `;
-
-                        const statusIcon = document.getElementById(`status_icon_${task.itemKey}`);
-                        if (statusIcon) {
-                            statusIcon.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>`;
-                        }
-                    } else {
-                        throw new Error("Upload Failed");
-                    }
+                    initData = await res.json();
+                    clearTimeout(timeoutId);
                 } catch (err) {
-                    const fallbackObj = {
-                        id: 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-                        albumId: currentAlbumId,
-                        url: task.base64,
-                        name: task.file.name,
-                        downloaded: false
-                    };
-                    photos.push(fallbackObj);
-                    saveCurrentPhotos();
+                    clearTimeout(timeoutId);
+                    groupTasks.forEach(t => {
+                        t.lastError = 'ขอสิทธิ์อัปโหลดไม่สำเร็จ';
+                        setStatusIcon(t.itemKey, `<span class="text-[10px] text-amber-500">รอเก็บตก</span>`);
+                    });
+                    return 'error';
+                }
 
-                    task.card.innerHTML = `
-                        <img src="${task.base64}" class="w-full h-full object-cover">
-                        <button onclick="deletePhoto('${fallbackObj.id}')" class="absolute top-2 right-2 w-7 h-7 bg-rose-600/90 hover:bg-rose-500 text-white rounded-full flex items-center justify-center text-xs shadow-lg transition">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    `;
+                if (!initData || initData.status === 'fallback') {
+                    return 'fallback';
+                }
 
-                    const statusIcon = document.getElementById(`status_icon_${task.itemKey}`);
-                    if (statusIcon) {
-                        statusIcon.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>`;
+                if (initData.status !== 'success' || !Array.isArray(initData.sessions)) {
+                    const msg = initData.message || 'Apps Script ตอบกลับผิดพลาด';
+                    groupTasks.forEach(t => {
+                        t.lastError = msg;
+                        setStatusIcon(t.itemKey, `<span class="text-[10px] text-amber-500">รอเก็บตก</span>`);
+                    });
+                    return 'error';
+                }
+
+                if (initData.folderId && !targetFolderId) {
+                    targetFolderId = initData.folderId;
+                    currentFolderIdParam = initData.folderId;
+                    if (currentAlbum) {
+                        currentAlbum.folderId = initData.folderId;
+                        saveAlbums();
                     }
-                } finally {
-                    completedUploadCount++;
-                    widgetTitle.innerText = `ส่งเรียบร้อยแล้ว ${completedUploadCount}/${totalUploadCount} รูป`;
-                    document.getElementById('adminActiveCount').innerText = `${photos.length} รูป`;
+                }
+
+                // ยิงอัปโหลดทั้ง 10 รูปพร้อมกันตรงเข้า Google Drive
+                await Promise.all(groupTasks.map(async (task, idx) => {
+                    const session = initData.sessions[idx];
+                    if (!session || !session.ok) {
+                        task.lastError = (session && session.error) ? session.error : 'ไม่สามารถเริ่มอัปโหลดได้';
+                        setStatusIcon(task.itemKey, `<span class="text-[10px] text-amber-500">รอเก็บตก</span>`);
+                        return;
+                    }
+                    if (session.alreadyExists && session.file) {
+                        task.done = true;
+                        task.lastError = '';
+                        addUploadedCard(session.file);
+                        setStatusIcon(task.itemKey, `<i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>`);
+                        updateHeaderStatus();
+                        return;
+                    }
+                    if (session.uploadUrl) {
+                        await putFileDirectToDrive(task, session.uploadUrl);
+                    }
+                }));
+
+                saveCurrentPhotos();
+                return 'ok';
+            };
+
+            // 3. โหมดสำรอง (กรณีเปิดไฟล์ผ่าน file:// โดยไม่ได้เปิดผ่าน http/https)
+            const runFallbackBatch = async (pendingTasks, isRetryFlag) => {
+                const CHUNK_SIZE = 3;
+                const MAX_BYTES = 8 * 1024 * 1024;
+                const chunks = [];
+                let cur = [];
+                let curBytes = 0;
+
+                for (const t of pendingTasks) {
+                    if (t.done) continue;
+                    const sz = t.file.size || 0;
+                    if (cur.length > 0 && (cur.length >= CHUNK_SIZE || curBytes + sz > MAX_BYTES)) {
+                        chunks.push(cur);
+                        cur = [];
+                        curBytes = 0;
+                    }
+                    cur.push(t);
+                    curBytes += sz;
+                }
+                if (cur.length > 0) chunks.push(cur);
+
+                for (const chunk of chunks) {
+                    chunk.forEach(t => setStatusIcon(t.itemKey, `<i class="fa-solid fa-spinner fa-spin text-sky-500"></i>`));
+                    const payloadFiles = [];
+                    for (const t of chunk) {
+                        const base64 = await readFileAsDataURL(t.file);
+                        payloadFiles.push({ name: t.file.name, type: t.mimeType, base64 });
+                    }
+                    try {
+                        const res = await fetch(googleScriptUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: JSON.stringify({
+                                action: 'uploadBatch',
+                                albumTitle: albumTitle,
+                                folderId: targetFolderId,
+                                parentFolderId: parentDriveFolderId,
+                                isRetry: isRetryFlag,
+                                files: payloadFiles
+                            })
+                        });
+                        const data = await res.json();
+                        if (data && data.status === 'success' && Array.isArray(data.results)) {
+                            if (data.folderId && !targetFolderId) {
+                                targetFolderId = data.folderId;
+                                currentFolderIdParam = data.folderId;
+                            }
+                            data.results.forEach((r, idx) => {
+                                const task = chunk[idx];
+                                if (task && r && r.ok && r.file) {
+                                    task.done = true;
+                                    addUploadedCard(r.file);
+                                    setStatusIcon(task.itemKey, `<i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>`);
+                                } else if (task) {
+                                    task.lastError = r?.error || 'ส่งไม่สำเร็จ';
+                                }
+                            });
+                            updateHeaderStatus();
+                        }
+                    } catch (e) {
+                        chunk.forEach(t => t.lastError = 'เครือข่ายสะดุด');
+                    }
+                    payloadFiles.length = 0;
+                    await sleep(300);
                 }
             };
 
-            const CONCURRENCY_LIMIT = 5;
-            const pool = [];
-
-            for (const task of uploadQueue) {
-                const p = uploadSingleFile(task);
-                pool.push(p);
-
-                if (pool.length >= CONCURRENCY_LIMIT) {
-                    await Promise.race(pool);
-                    for (let i = pool.length - 1; i >= 0; i--) {
-                        pool.splice(i, 1);
+            // เริ่มรอบหลัก: ส่งทีละ 10 รูปพร้อมกัน
+            const DIRECT_BATCH_SIZE = 10;
+            if (useDirectTurbo) {
+                for (let i = 0; i < tasks.length; i += DIRECT_BATCH_SIZE) {
+                    const group = tasks.slice(i, i + DIRECT_BATCH_SIZE);
+                    const status = await runDirectTurboGroup(group, isManualRetry);
+                    if (status === 'fallback') {
+                        useDirectTurbo = false;
+                        showToast('เปิดผ่าน file:// กำลังใช้โหมดสำรอง (เปิดผ่าน Live Server/เว็บจริงจะเร็วขึ้น 5 เท่า)', 'warning');
+                        await runFallbackBatch(tasks.filter(t => !t.done), isManualRetry);
+                        break;
                     }
+                }
+            } else {
+                showToast('เปิดผ่าน file:// กำลังใช้โหมดสำรอง (เปิดผ่าน Live Server/เว็บจริงจะใช้ Turbo 10 รูปพร้อมกัน)', 'warning');
+                await runFallbackBatch(tasks, isManualRetry);
+            }
+
+            // ระบบเก็บตกอัตโนมัติ (สูงสุด 2 รอบ พร้อมกันไฟล์ซ้ำ)
+            for (let round = 1; round <= 2; round++) {
+                const remain = tasks.filter(t => !t.done);
+                if (remain.length === 0) break;
+
+                widgetTitle.innerText = `กำลังเก็บตกอัตโนมัติ ${remain.length} รูป (รอบ ${round})...`;
+                await sleep(2500);
+
+                if (useDirectTurbo) {
+                    for (let i = 0; i < remain.length; i += DIRECT_BATCH_SIZE) {
+                        await runDirectTurboGroup(remain.slice(i, i + DIRECT_BATCH_SIZE), true);
+                    }
+                } else {
+                    await runFallbackBatch(remain, true);
                 }
             }
 
-            await Promise.all(pool);
+            // สรุปผลสุดท้าย
+            const stillFailed = tasks.filter(t => !t.done);
+            failedUploadFiles = stillFailed.map(t => t.file);
+            stillFailed.forEach(t => {
+                const safeErr = (t.lastError || 'อัปโหลดไม่สำเร็จ').replace(/"/g, '&quot;');
+                setStatusIcon(t.itemKey, `<i class="fa-solid fa-circle-xmark text-rose-500 text-base" title="${safeErr}"></i>`);
+            });
 
-            widgetIcon.className = "fa-solid fa-circle-check text-emerald-500";
-            widgetTitle.innerText = `ส่งไฟล์เรียบร้อยแล้ว - ${totalUploadCount} รูป`;
-            showToast('อัปโหลดรูปภาพทั้งหมดเรียบร้อยแล้ว');
+            completedUploadCount = tasks.filter(t => t.done).length;
+            saveCurrentPhotos();
+            isUploadingNow = false;
+            window.onbeforeunload = null;
+
+            if (failedUploadFiles.length > 0) {
+                widgetIcon.className = "fa-solid fa-triangle-exclamation text-amber-500";
+                widgetTitle.innerText = `เสร็จสิ้น: สำเร็จ ${completedUploadCount} / พลาด ${failedUploadFiles.length} รูป`;
+
+                const retryBtn = document.createElement('button');
+                retryBtn.className = "w-full mb-2 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs transition";
+                retryBtn.innerHTML = `<i class="fa-solid fa-rotate-right mr-1"></i> ลองส่งใหม่เฉพาะที่พลาด (${failedUploadFiles.length} รูป)`;
+                retryBtn.onclick = () => {
+                    const filesToRetry = [...failedUploadFiles];
+                    uploadFilesProcess(filesToRetry, true);
+                };
+                widgetList.prepend(retryBtn);
+                showToast(`อัปโหลดเสร็จสิ้น (สำเร็จ ${completedUploadCount}, พลาด ${failedUploadFiles.length} รูป)`, 'warning');
+            } else {
+                widgetIcon.className = "fa-solid fa-circle-check text-emerald-500";
+                widgetTitle.innerText = `ส่งไฟล์เรียบร้อยแล้ว - ${completedUploadCount} รูป`;
+                showToast(`อัปโหลดรูปภาพครบทั้ง ${completedUploadCount} รูปเรียบร้อยแล้ว`);
+            }
         }
 
         function toggleUploadWidgetCollapse() {
@@ -1696,7 +1920,7 @@
                         sub: sub,
                         expireDays: expireDays,
                         parentFolderId: parentDriveFolderId,
-                        customerUrl: `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(title)}`
+                        customerLink: `${window.location.origin}${window.location.pathname}?album=${encodeURIComponent(title)}`
                     })
                 });
 
